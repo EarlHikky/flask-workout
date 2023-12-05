@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  {{ super() }}
+{% for workout in workouts %}
+  <li>Тренировка от {{ workout.date.strftime('%d.%m.%Y') }}</li>
+{% endfor %}
+{% endblock %}
