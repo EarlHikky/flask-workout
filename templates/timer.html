@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Таймер и Flask</title>
+</head>
+<body>
+    <form action="{{ url_for('start_timer') }}" method="post">
+        <p><label>Длительность: </label> <input type="text" name="duration" value="" /></p>
+        <p><input type="submit" value="Старт" /></p>
+    </form>
+
+    <iframe src="{{ url_for('stop_timer') }}" name="stop_timer_frame" style="display:none;"></iframe>
+
+    <form action="{{ url_for('add_set') }}" method="post" class="form-contact" id="exerciseForm">
+        <p><label>Количество: </label> <input type="text" name="reps" value="" /></p>
+        <p><label>Вес: </label> <input type="text" name="weight" value="" /></p>
+        <p><label>Отдых: </label> <input type="text" name="rest" value="" /></p>
+        <p><input type="submit" value="Добавить" /></p>
+    </form>
+</body>
+</html>

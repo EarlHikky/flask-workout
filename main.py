@@ -1,9 +1,10 @@
+import time
 from pprint import pp
 
-from flask import Flask, render_template, url_for, request, flash, session, redirect, abort
+from flask import Flask, render_template, url_for, request, flash, session, redirect, abort, Response, jsonify
 from flask_sqlalchemy import SQLAlchemy
 
-from db import User, Exercise, Workout
+from db import User, Exercise, Workout, Sets
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'fdgdfgdfggf786hfg6hfg6h7f'
@@ -54,7 +55,7 @@ def user_detail(user_id: int):
     # return render_template('user/detail.html', user=user)
 
 
-@app.route('/users/create', methods=['GET', 'POST'])
+@app.route('/user/create', methods=['GET', 'POST'])
 def user_create():
     if request.method == 'POST':
         user: User = User(
@@ -81,16 +82,35 @@ def add_exercise():
 
 
 @app.route('/exercises')
-def exercises():
+def show_exercises():
     exercises = db.session.execute(db.select(Exercise).order_by(Exercise.title)).scalars()
     return render_template('exercise/exercises.html', exercises=exercises, title='Список упражнений', menu=menu)
 
 
 @app.route('/workouts')
-def workouts():
+def show_workouts():
     workouts = db.session.execute(db.select(Workout).order_by(Workout.date)).scalars()
     return render_template('workout/workouts.html', workouts=workouts, title='Список тренировок', menu=menu)
 
+
+
+
+@app.route('/set/create', methods=['POST', 'GET'])
+def add_set():
+    if request.method == 'POST':
+
+        set = Sets(
+            reps=request.form['reps'],
+            weight=request.form['weight'],
+#            duration=request.form['duration'],
+#            rest=request.form['rest'],
+        )
+        db.session.add(set)
+        if not db.session.commit():
+            flash('Сет добавлен', category='success')
+        else:
+            flash('Ошибка добавления', category='error')
+    return render_template('set/create.html', title='Добавить сет', menu=menu)
 
 
 @app.route('/login', methods=['POST', 'GET'])
@@ -114,6 +134,40 @@ def page_not_found(error):
     return render_template('page404.html', title='Страница не найдена', menu=menu), 404
 
 
+
+
+
+@app.route('/content') # render the content a url differnt from index. This will be streamed into the iframe
+def content():
+    def timer(t):
+        for i in range(t):
+            time.sleep(1) #put 60 here if you want to have seconds
+            yield str(i)
+    return Response(timer(10), mimetype='text/html') #at the moment the time value is hardcoded in the function just for simplicity
+
+
+
+@app.route('/timer')
+def timer():
+    return render_template('timer.html')
+
+@app.route('/start_timer', methods=['POST'])
+def start_timer():
+    global timer_id
+    duration = int(request.form['duration'])
+    timer_id = int(time.time())  # Уникальный идентификатор для таймера
+    time.sleep(duration)
+    return jsonify({'status': 'success', 'timer_id': timer_id})
+
+@app.route('/stop_timer', methods=['POST'])
+def stop_timer():
+    global timer_id
+    timer_id = None
+    return jsonify({'status': 'success'})
+
+
+
+
 def test_request():
     with app.test_request_context():
         print(url_for('index'))
@@ -123,4 +177,5 @@ def test_request():
 
 if __name__ == '__main__':
     app.run(debug=True)
+    # app.run(debug=True, host='192.168.31.5', port=5000)
     # app.run()

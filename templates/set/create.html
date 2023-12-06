@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  {{ super() }}
+{% for cat, msg in get_flashed_messages(True) %}
+  <div class="flash {{cat}}">{{msg}}</div>
+{% endfor %}
+
+ <h2> Таймер </h2>
+    <div>
+        <iframe frameborder="0" noresize="noresize"
+     style='background: transparent; width: 100%; height:100%;' src="{{ url_for('content')}}"></iframe>
+    </div>
+
+<form action="{{url_for('add_set')}}" method="post" class="form-contact" id="timerForm">
+  <p><input type="submit" value="Старт" /></p>
+</form>
+
+
+<form action="{{url_for('add_set')}}" method="post" class="form-contact" id="exerciseForm">
+  <p><label>Количество: </label> <input type="text" name="reps" value="" /></p>
+  <p><label>Вес: </label> <input type="text" name="weight" value="" /></p>
+  <p><label>Длительность: </label> <input type="text" name="duration" value="" id="durationInput" /></p>
+  <p><label>Отдых: </label> <input type="text" name="rest" value="" id="restInput" /></p>
+  <p><input type="submit" value="Стоп" /></p>
+</form>
+
+
+<!-- JavaScript для таймера -->
+<script>
+  var durationInput = document.getElementById("durationInput");
+  var restInput = document.getElementById("restInput");
+  var exerciseForm = document.getElementById("exerciseForm");
+
+  var timerId;
+
+  function startTimer() {
+    var duration = parseInt(durationInput.value, 10);
+    if (!isNaN(duration)) {
+      timerId = setTimeout(function() {
+        alert("Время для отдыха!");
+        restTimer(); // Начинаем таймер отдыха после истечения времени упражнения
+      }, duration * 1000);
+    } else {
+      alert("Введите корректное значение для длительности упражнения.");
+    }
+  }
+
+  function restTimer() {
+    var rest = parseInt(restInput.value, 10);
+    if (!isNaN(rest)) {
+      timerId = setTimeout(function() {
+        alert("Отдых окончен, отправляю данные на сервер!");
+        exerciseForm.submit(); // Отправляем форму на сервер
+      }, rest * 1000);
+    } else {
+      alert("Введите корректное значение для длительности отдыха.");
+    }
+  }
+
+  function stopTimer() {
+    clearTimeout(timerId);
+    alert("Таймер остановлен.");
+  }
+
+  document.getElementById("startButton").addEventListener("click", startTimer);
+  document.getElementById("stopButton").addEventListener("click", stopTimer);
+</script>
+
+
+
+{% endblock %}
+
