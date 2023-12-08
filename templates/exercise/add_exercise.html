@@ -5,7 +5,7 @@
   {% for cat, msg in get_flashed_messages(True) %}
     <div class="flash {{cat}}">{{msg}}</div>
   {% endfor %}
-  <form action="/add-exercise" method="post" class="form-contact"><p><label>Упражнение: </label> <input type="text" name="title" value="" requied />
+  <form action="{{url_for('add_exercise')}}" method="post" class="form-contact"><p><label>Упражнение: </label> <input type="text" name="title" value="" required />
     <p><input type="submit" value="Отправить" />
   </form>
 {% endblock %}

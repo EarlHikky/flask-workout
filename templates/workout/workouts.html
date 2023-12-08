@@ -3,6 +3,7 @@
 {% block content %}
   {{ super() }}
 {% for workout in workouts %}
-  <li>Тренировка от {{ workout.date.strftime('%d.%m.%Y') }}</li>
+<!--  <p class="title"><a href="{{ url_for('show_workout', workout_id=workout.id) }}">{{ workout.date }}</a></p>-->
+  <p>Тренировка от <a href="{{ url_for('show_workout', workout_id=workout.id) }}">{{ workout.date.strftime('%d.%m.%Y') }}</a></p>
 {% endfor %}
 {% endblock %}

@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block content %}
+ {{ super() }}
+ <table>
+   <tr>
+     <th>Упражнение</th>
+     <th>Повторы</th>
+     <th>Вес</th>
+     <th>Продолжительность</th>
+     <th>Отдых</th>
+   </tr>
+   {% for set in workout.sets %}
+   <tr>
+     <td>{{ set.exercise.title }}</td>
+     <td>{{ set.reps }}</td>
+     <td>{{ set.weight }}</td>
+     <td>{{ set.duration }}</td>
+     <td>{{ set.rest }}</td>
+   </tr>
+   {% endfor %}
+ </table>
+{% endblock %}
