@@ -6,7 +6,7 @@ from flask import Flask, render_template, url_for, request, flash, session, redi
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import desc
 
-from db import User, Exercise, Workout, Sets
+from db import User, Exercise, Workout, Sets, WorkoutType
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'fdgdfgdfggf786hfg6hfg6h7f'
@@ -21,6 +21,7 @@ menu = [{'name': 'Новая тренировка', 'url': 'add_workout'},
         {'name': 'Добавить упражнение', 'url': 'add_exercise'},
         {'name': 'Добавить сет', 'url': 'add_set'},
         ]
+
 
 # class User(db.Model):
 #     __tablename__ = 'users'
@@ -68,28 +69,30 @@ def add_user():
         db.session.add(user)
         db.session.commit()
         # return redirect(url_for('user_detail', user_id=user.id))
-        return redirect(url_for('index'))
+        return redirect(url_for('add_workout'))
 
     return render_template('user/add_user.html', title='Добавить пользователя', menu=menu)
 
 
 @app.route('/add-exercise', methods=['POST', 'GET'])
 def add_exercise():
+    types = db.session.execute(db.select(WorkoutType).order_by(WorkoutType.type)).scalars()
     if request.method == 'POST':
-        exercise = Exercise(title=request.form['title'])
+        exercise = Exercise(title=request.form['title'], workout_type_id=request.form['type'])
         db.session.add(exercise)
         if not db.session.commit():
             flash('Упражнение добавлено', category='success')
         else:
             flash('Ошибка добавления', category='error')
 
-    return render_template('exercise/add_exercise.html', title='Добавить упражнение', menu=menu)
+    return render_template('exercise/add_exercise.html', title='Добавить упражнение', menu=menu, types=types)
 
 
 @app.route('/add-workout', methods=['POST', 'GET'])
 def add_workout():
+    types = db.session.execute(db.select(WorkoutType).order_by(WorkoutType.type)).scalars()
     if request.method == 'POST':
-        workout = Workout(user_id=1)
+        workout = Workout(user_id=1, workout_type_id=request.form['type'])
         db.session.add(workout)
         if not db.session.commit():
             flash('Тренировка добавлена', category='success')
@@ -97,14 +100,17 @@ def add_workout():
         else:
             flash('Ошибка добавления', category='error')
 
-    return render_template('workout/add_workout.html', title='Добавить тренировку', menu=menu)
+    return render_template('workout/add_workout.html', title='Добавить тренировку', menu=menu, types=types)
 
 
 @app.route('/add-set', methods=['POST', 'GET'])
 def add_set():
-    exercises = db.session.execute(db.select(Exercise).order_by(Exercise.title)).scalars()
+    current_workout = db.session.execute(db.select(Workout).order_by(desc(Workout.date))).first()[0]
+    current_workout_type_id = current_workout.workout_type_id
+    # current_workout_type_id = 1
+    exercises = db.session.query(Exercise).join(WorkoutType, Exercise.workout_type_id == current_workout_type_id).order_by(WorkoutType.type, Exercise.title).all()
     if request.method == 'POST':
-        workout_id = db.session.execute(db.select(Workout).order_by(desc(Workout.date))).first()[0].id
+        workout_id = current_workout.id
         set = Sets(
             reps=request.form['reps'] if request.form['reps'] else 0,
             weight=request.form['weight'] if request.form['weight'] else 0,
@@ -125,6 +131,7 @@ def add_set():
 def show_exercises():
     exercises = db.session.execute(db.select(Exercise).order_by(Exercise.title)).scalars()
     return render_template('exercise/exercises.html', exercises=exercises, title='Список упражнений', menu=menu)
+
 
 @app.route('/workout/<workout_id>')
 def show_workout(workout_id):
