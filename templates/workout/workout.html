@@ -1,23 +1,42 @@
 {% extends 'base.html' %}
 
 {% block content %}
- {{ super() }}
- <table>
-   <tr>
-     <th>Упражнение</th>
-     <th>Повторы</th>
-     <th>Вес</th>
-     <th>Продолжительность</th>
-     <th>Отдых</th>
-   </tr>
-   {% for set in workout.sets %}
-   <tr>
-     <td>{{ set.exercise.title }}</td>
-     <td>{{ set.reps }}</td>
-     <td>{{ set.weight }}</td>
-     <td>{{ set.duration }}</td>
-     <td>{{ set.rest }}</td>
-   </tr>
-   {% endfor %}
- </table>
+  {{ super() }}
+  <table>
+    <tr>
+      <th>Упражнение</th>
+      <th>Повторы</th>
+      <th>Вес</th>
+      <th>Продолжительность</th>
+      <th>Отдых</th>
+    </tr>
+    {% set uniqueTitles = workout.sets|groupby('exercise.title') %}
+    {% for title, sets in uniqueTitles %}
+      {% set firstSet = sets[0] %}
+      <tr>
+        <td rowspan="{{ sets|length }}">{{ title }}</td>
+        <td>{{ firstSet.reps }}</td>
+        <td>{{ firstSet.weight }}</td>
+        <td>{{ firstSet.duration.strftime('%M:%S') }}</td>
+        <td>{{ firstSet.rest.strftime('%M:%S') }}</td>
+      </tr>
+      {% for set in sets[1:] %}
+        <tr>
+          <td>{{ set.reps }}</td>
+          <td>{{ set.weight }}</td>
+          <td>{{ set.duration.strftime('%M:%S') }}</td>
+          <td>{{ set.rest.strftime('%M:%S') }}</td>
+        </tr>
+      {% endfor %}
+    <tr style="height: 10px;"></tr> <!--  Пустая строка между блоками -->
+    {% endfor %}
+  </table>
+
+
+  <form action="{{ url_for('delete_workout', workout_id=workout.id) }}" method="post">
+    <input type="submit" value="Удалить тренировку">
+  </form>
 {% endblock %}
+
+
+

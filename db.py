@@ -23,6 +23,9 @@ class WorkoutType(Base):
     id = Column(Integer, primary_key=True)
     type = Column(String(25), unique=True)
 
+    def __repr__(self):
+        return self.type
+
 
 class Exercise(Base):
     __tablename__ = 'exercises'
@@ -37,8 +40,8 @@ class Workout(Base):
     id = Column(Integer, primary_key=True)
     date = Column(DateTime(), default=datetime.now)
     workout_type_id = Column(String(25), ForeignKey('workout_types.id'))
-    start = Column(DateTime(), default=datetime.now)
     stop = Column(DateTime())
+    type = relationship('WorkoutType')
     duration = Column(Time())
     user_id = Column(Integer, ForeignKey('users.id'))
     sets = relationship('Sets', backref='workout')
@@ -52,8 +55,8 @@ class Sets(Base):
     workout_id = Column(Integer, ForeignKey('workouts.id'))
     exercise_id = Column(Integer, ForeignKey('exercises.id'))
     exercise = relationship('Exercise')
-    start = Column(DateTime(), default=datetime.now)
-    stop = Column(DateTime())
+    start = Column(DateTime())
+    stop = Column(DateTime(), default=datetime.now)
     duration = Column(Time())
     rest = Column(Time())
 

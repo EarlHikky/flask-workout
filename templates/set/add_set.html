@@ -2,24 +2,54 @@
 
 {% block content %}
   {{ super() }}
-{% for cat, msg in get_flashed_messages(True) %}
-  <div class="flash {{cat}}">{{msg}}</div>
-{% endfor %}
-
-<form action="{{url_for('add_set')}}" method="post" class="form-contact">
+<form action="{{ url_for('add_set') }}" method="post" class="form-contact">
   <p><label for="exercise">Упражнение: </label>
-      <select name="exercise" id="exercise">
-          {% for exercise in exercises %}
-              <option value="{{ exercise.id }}">{{ exercise.title }}</option>
-          {% endfor %}
-      </select>
+    <select name="exercise" id="exercise">
+      {% for exercise in exercises %}
+        <option value="{{ exercise.id }}" {% if exercise.title == last_exercise_title %}selected{% endif %}>{{ exercise.title }}</option>
+      {% endfor %}
+    </select>
   </p>
-  <p><label>Количество: </label> <input type="text" name="reps" value="" /></p>
-  <p><label>Вес: </label> <input type="text" name="weight" value="" /></p>
-  <p><label>Длительность: </label> <input type="text" name="duration" value="" id="durationInput" /></p>
-  <p><label>Отдых: </label> <input type="text" name="rest" value="" id="restInput" /></p>
-  <p><input type="submit" value="Добавить" /></p>
+  <p><input type="submit" value="Старт" /></p>
 </form>
 
+<form action="{{ url_for('stop_set') }}" method="post" class="form-contact">
+      <p><label>Повторы: </label> <input type="text" name="reps" value="" /></p>
+  <p><label>Вес: </label> <input type="text" name="weight" value="" /></p>
+    <p>
+   <label>Отдых: </label>
+
+ <table>
+ <tr><td>
+   <div class="radio-container">
+    <input type="radio" id="rest120" name="rest" value="120" >
+    <label for="rest120">120 секунд</label>
+   </div>
+  </td>
+  <td>
+   <div class="radio-container">
+    <input type="radio" id="rest90" name="rest" value="90" checked>
+    <label for="rest90">90 секунд</label>
+   </div>
+  </td>
+  <td>
+   <div class="radio-container">
+    <input type="radio" id="rest60" name="rest" value="60">
+    <label for="rest60">60 секунд</label>
+   </div>
+  </td>
+  <td>
+   <div class="radio-container">
+    <input type="radio" id="rest30" name="rest" value="30">
+    <label for="rest30">30 секунд</label>
+   </div>
+  </td>
+ </tr>
+ </table>
+<p><input type="submit" value="Стоп" /></p>
+</form>
+<form action="{{url_for('stop_workout')}}" method="post" class="form-contact">
+    <input type="submit" value="Завершить тренировку">
+</form>
 {% endblock %}
 

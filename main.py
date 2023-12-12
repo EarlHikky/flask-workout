@@ -2,7 +2,7 @@ import time
 import datetime
 from pprint import pp
 
-from flask import Flask, render_template, url_for, request, flash, session, redirect, abort, Response, jsonify
+from flask import Flask, render_template, url_for, request, flash, session, redirect, abort, Response, Blueprint
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import desc
 
@@ -16,11 +16,15 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql+psycopg2://postgres@localhos
 db = SQLAlchemy(app)
 # db.init_app(app)
 # db.create_all()
-menu = [{'name': 'Новая тренировка', 'url': 'add_workout'},
+menu = [{'name': 'Тренировка', 'url': 'add_workout'},
         {'name': 'Список тренировок', 'url': 'show_workouts'},
         {'name': 'Добавить упражнение', 'url': 'add_exercise'},
         {'name': 'Добавить сет', 'url': 'add_set'},
+        {'name': 'Список упражнений', 'url': 'show_exercises'},
         ]
+
+
+# main = Blueprint('main', __name__) # TODO
 
 
 # class User(db.Model):
@@ -38,8 +42,7 @@ menu = [{'name': 'Новая тренировка', 'url': 'add_workout'},
 
 @app.route('/')
 def index():
-    return redirect(url_for('show_workouts'))
-    # return render_template('base.html', title='Главная', menu=menu)
+    return redirect(url_for('add_workout'))
 
 
 # @app.route('/profile/<int:username>/<path>')
@@ -74,6 +77,55 @@ def add_user():
     return render_template('user/add_user.html', title='Добавить пользователя', menu=menu)
 
 
+@app.route('/stop-set', methods=['POST'])
+def stop_set():
+    current_set = db.session.query(Sets).order_by(desc(Sets.id)).first()
+    current_set.stop = datetime.datetime.now()
+    current_set.rest = datetime.timedelta(seconds=int(request.form['rest']))
+    current_set.duration = current_set.stop - current_set.start
+    current_set.reps = request.form['reps'] if request.form['reps'] else 0
+    current_set.weight = request.form['weight'] if request.form['weight'] else 0
+
+    if db.session.commit():
+        flash('Ошибка добавления', category='error')
+
+    flash('Сет добавлен', category='success')
+    return redirect(url_for('add_set'))
+
+
+@app.route('/add-set', methods=['POST', 'GET'])
+def add_set():
+    current_workout = db.session.execute(db.select(Workout).order_by(desc(Workout.date))).first()[0]
+    current_workout_id = current_workout.id
+    current_workout_type_id = current_workout.workout_type_id
+
+    last_set = db.session.query(Sets).order_by(desc(Sets.id)).first()
+
+    exercises = (db.session.query(Exercise)
+                 .join(WorkoutType, Exercise.workout_type_id == current_workout_type_id)
+                 .order_by(WorkoutType.type, Exercise.title)
+                 .all())
+
+    last_exercise_title = last_set.exercise.title if last_set else ''
+
+    if request.method == 'POST':
+        new_set = Sets(
+            workout_id=current_workout_id,
+            exercise_id=request.form['exercise'],
+            start=datetime.datetime.now(),
+        )
+
+        db.session.add(new_set)
+        if not db.session.commit():
+            flash('Сет добавлен', category='success')
+            return redirect(url_for('add_set'))
+        else:
+            flash('Ошибка добавления', category='error')
+
+    return render_template('set/add_set.html', title='Добавить сет', menu=menu, exercises=exercises,
+                           last_exercise_title=last_exercise_title)
+
+
 @app.route('/add-exercise', methods=['POST', 'GET'])
 def add_exercise():
     types = db.session.execute(db.select(WorkoutType).order_by(WorkoutType.type)).scalars()
@@ -88,6 +140,35 @@ def add_exercise():
     return render_template('exercise/add_exercise.html', title='Добавить упражнение', menu=menu, types=types)
 
 
+@app.route('/exercises')
+def show_exercises():
+    exercises = db.session.execute(db.select(Exercise).order_by(Exercise.title)).scalars()
+    return render_template('exercise/exercises.html', exercises=exercises, title='Список упражнений', menu=menu)
+
+
+@app.route('/exercise/<exercise_id>', methods=['GET', 'POST'])
+def update_exercise(exercise_id):
+    exercise = db.get_or_404(Exercise, exercise_id)
+    if request.method == 'POST':
+        exercise.title = request.form['title']
+        exercise.workout_type_id = request.form['workout_type_id']
+        db.session.commit()
+        return redirect(url_for('show_exercises'))
+
+    else:
+        workout_types = db.session.execute(db.select(WorkoutType).order_by(WorkoutType.type)).scalars()
+        return render_template('exercise/update_exercise.html', exercise=exercise, workout_types=workout_types,
+                               menu=menu)
+
+
+@app.route('/exercise/<exercise_id>/delete', methods=['POST'])
+def delete_exercise(exercise_id):
+    exercise = db.get_or_404(Exercise, exercise_id)
+    db.session.delete(exercise)
+    db.session.commit()
+    return redirect(url_for('show_exercises'))
+
+
 @app.route('/add-workout', methods=['POST', 'GET'])
 def add_workout():
     types = db.session.execute(db.select(WorkoutType).order_by(WorkoutType.type)).scalars()
@@ -100,37 +181,7 @@ def add_workout():
         else:
             flash('Ошибка добавления', category='error')
 
-    return render_template('workout/add_workout.html', title='Добавить тренировку', menu=menu, types=types)
-
-
-@app.route('/add-set', methods=['POST', 'GET'])
-def add_set():
-    current_workout = db.session.execute(db.select(Workout).order_by(desc(Workout.date))).first()[0]
-    current_workout_type_id = current_workout.workout_type_id
-    # current_workout_type_id = 1
-    exercises = db.session.query(Exercise).join(WorkoutType, Exercise.workout_type_id == current_workout_type_id).order_by(WorkoutType.type, Exercise.title).all()
-    if request.method == 'POST':
-        workout_id = current_workout.id
-        set = Sets(
-            reps=request.form['reps'] if request.form['reps'] else 0,
-            weight=request.form['weight'] if request.form['weight'] else 0,
-            workout_id=workout_id,
-            exercise_id=request.form['exercise'],
-            duration=datetime.timedelta(seconds=int(request.form['duration']) if request.form['duration'] else 0),
-            rest=datetime.timedelta(seconds=int(request.form['rest']) if request.form['rest'] else 0),
-        )
-        db.session.add(set)
-        if not db.session.commit():
-            flash('Сет добавлен', category='success')
-        else:
-            flash('Ошибка добавления', category='error')
-    return render_template('set/add_set.html', title='Добавить сет', menu=menu, exercises=exercises)
-
-
-@app.route('/exercises')
-def show_exercises():
-    exercises = db.session.execute(db.select(Exercise).order_by(Exercise.title)).scalars()
-    return render_template('exercise/exercises.html', exercises=exercises, title='Список упражнений', menu=menu)
+    return render_template('workout/add_workout.html', title='Тренировка', menu=menu, types=types)
 
 
 @app.route('/workout/<workout_id>')
@@ -141,10 +192,35 @@ def show_workout(workout_id):
                            menu=menu)
 
 
+@app.route('/workout-stop', methods=['POST'])
+def stop_workout():
+    current_workout = db.session.execute(db.select(Workout).order_by(desc(Workout.date))).first()[0]
+    current_workout.stop = datetime.datetime.now()
+    current_workout.duration = current_workout.stop - current_workout.date
+    db.session.commit()
+    return redirect(url_for('show_workouts'))
+
+
 @app.route('/workouts')
 def show_workouts():
     workouts = db.session.execute(db.select(Workout).order_by(Workout.date)).scalars()
     return render_template('workout/workouts.html', workouts=workouts, title='Список тренировок', menu=menu)
+
+
+@app.route('/delete-workout/<int:workout_id>', methods=['POST'])
+def delete_workout(workout_id):
+    workout = db.session.get(Workout, workout_id)
+    if workout:
+        db.session.query(Sets).filter(Sets.workout_id == workout_id).delete()
+        db.session.delete(workout)
+        if not db.session.commit():
+            flash('Тренировка удалена', category='success')
+        else:
+            flash('Тренировка не удалена', category='error')
+    else:
+        flash('Тренировка не найдена', category='error')
+
+    return redirect(url_for('show_workouts'))
 
 
 @app.route('/login', methods=['POST', 'GET'])
@@ -168,6 +244,34 @@ def page_not_found(error):
     return render_template('page404.html', title='Страница не найдена', menu=menu), 404
 
 
+@app.route('/test', methods=['POST', 'GET'])
+def test():
+    current_workout = db.session.execute(db.select(Workout).order_by(desc(Workout.date))).first()[0]
+    current_workout_type_id = current_workout.workout_type_id
+    # current_workout_type_id = 1
+    exercises = db.session.query(Exercise).join(WorkoutType,
+                                                Exercise.workout_type_id == current_workout_type_id).order_by(
+        WorkoutType.type, Exercise.title).all()
+    if request.method == 'POST':
+        workout_id = current_workout.id
+        set = Sets(
+            reps=request.form['reps'] if request.form['reps'] else 0,
+            weight=request.form['weight'] if request.form['weight'] else 0,
+            workout_id=workout_id,
+            exercise_id=request.form['exercise'],
+            # duration=datetime.timedelta(seconds=int(request.form['duration']) if request.form['duration'] else 0),
+            rest=datetime.timedelta(seconds=int(request.form['rest']) if request.form['rest'] else 0),
+        )
+        # current_workout.duration = current_workout.duration + datetime.datetime.now()
+        # db.session.add(set)
+        # if not db.session.commit():
+        #     flash('Сет добавлен', category='success')
+        # else:
+        #     flash('Ошибка добавления', category='error')
+        print(request.form['rest'])
+    return render_template('test.html', title='Добавить сет', menu=menu, exercises=exercises)
+
+
 def test_request():
     with app.test_request_context():
         print(url_for('index'))
@@ -178,4 +282,5 @@ def test_request():
 if __name__ == '__main__':
     # app.run(debug=True)
     app.run(debug=True, host='192.168.31.5', port=5000)
+    # app.run(host='192.168.31.5', port=5000)
     # app.run()

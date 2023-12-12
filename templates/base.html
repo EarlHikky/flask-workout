@@ -21,6 +21,21 @@
   </ul>
   {% endblock navbar %}
 </nav>
+{% for cat, msg in get_flashed_messages(True) %}
+  <div class="flash {{cat}}" id="flash-message">
+    {{ msg }}
+  </div>
+{% endfor %}
+
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+<script>
+  $(document).ready(function(){
+    // Скрывать сообщение через 5 секунд после загрузки страницы
+    setTimeout(function(){
+      $("#flash-message").fadeOut("slow");
+    }, 300);
+  });
+</script>
 {% endblock content %}
 </body>
 </html>

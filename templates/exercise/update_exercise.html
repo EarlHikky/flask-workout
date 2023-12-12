@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  {{ super() }}
+  <form action="{{ url_for('update_exercise', exercise_id=exercise.id) }}" method="post" class="form-contact">
+    <p><label for="title">Упражнение:</label> <input type="text" name="title" id="title" value="{{ exercise.title }}" required /></p>
+    <p><label for="workout_type_id">Тип:</label>
+      <select name="workout_type_id" id="workout_type_id">
+        {% for workout_type in workout_types %}
+          <option value="{{ workout_type.id }}" {% if workout_type.id == exercise.workout_type_id %}selected{% endif %}>{{ workout_type.type }}</option>
+        {% endfor %}
+      </select>
+    </p>
+    <p><input type="submit" value="Обновить" /></p>
+  </form>
+  <form action="{{ url_for('delete_exercise', exercise_id=exercise.id) }}" method="post">
+    <input type="submit" value="Удалить упражнение">
+  </form>
+{% endblock %}

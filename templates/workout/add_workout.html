@@ -2,15 +2,13 @@
 
 {% block content %}
   {{ super() }}
-{% for cat, msg in get_flashed_messages(True) %}
-  <div class="flash {{cat}}">{{msg}}</div>
-{% endfor %}
 <form action="{{url_for('add_workout')}}" method="post" class="form-contact">
   <p><label>Тип:</label> <select name="type" id="type">
     {% for type in types %}
               <option value="{{ type.id }}">{{ type.type }}</option>
           {% endfor %}
       </select></p>
-  <p><input type="submit" value="Добавить" />
+  <p><input type="submit" value="Начать тренировку" />
 </form>
 {% endblock %}
+

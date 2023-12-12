@@ -2,7 +2,34 @@
 
 {% block content %}
   {{ super() }}
-{% for exercise in exercises %}
-  <li>{{ exercise.title }}</li>
-{% endfor %}
+  <div class="exercise-list">
+    <h2>Список упражнений</h2>
+    <table>
+      <tr>
+        <th>Тип</th>
+        <th>Упражнение</th>
+      </tr>
+      {% set grouped_exercises = exercises|groupby('type.type') %}
+      {% for type, exercises_in_type in grouped_exercises %}
+        <tr>
+          <td rowspan="{{ exercises_in_type|length }}">{{ type }}</td>
+          {% set firstExercise = exercises_in_type[0] %}
+          <td>
+            <a href="{{ url_for('update_exercise', exercise_id=firstExercise.id) }}" class="exercise-link">
+              {{ firstExercise.title }}
+            </a>
+          </td>
+        </tr>
+        {% for exercise in exercises_in_type[1:] %}
+          <tr>
+            <td>
+              <a href="{{ url_for('update_exercise', exercise_id=exercise.id) }}" class="exercise-link">
+                {{ exercise.title }}
+              </a>
+            </td>
+          </tr>
+        {% endfor %}
+      {% endfor %}
+    </table>
+  </div>
 {% endblock %}

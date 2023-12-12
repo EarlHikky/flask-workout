@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, select, desc
 from sqlalchemy.orm import sessionmaker
 from db import User, Workout, Exercise, Sets
 
@@ -8,6 +8,15 @@ engine = create_engine('postgresql+psycopg2://postgres@localhost/workouts')
 # session = Session(bind=engine)
 
 Session = sessionmaker(bind=engine)
+
+
+def m(i):
+    with Session() as session:
+        # current_workout = session.execute(select(Workout).order_by(desc(Workout.date))).first()[0]
+        # session.get(Workout, i).duration = timedelta(hours=1)
+        current_workout = session.get(Workout, i)
+        current_workout.stop = current_workout.date + timedelta(hours=1)
+        session.commit()
 
 
 def test():
