@@ -1,26 +1,29 @@
-import time
 import datetime
-from pprint import pp
+from collections import defaultdict
+from itertools import groupby
 
-from flask import Flask, render_template, url_for, request, flash, session, redirect, abort, Response, Blueprint
+from flask import Flask, render_template, url_for, request, flash, redirect, session
 from flask_sqlalchemy import SQLAlchemy
+from flask_caching import Cache
 from sqlalchemy import desc
+from sqlalchemy.orm import joinedload
+from icecream import ic
 
-from db import User, Exercise, Workout, Sets, WorkoutType
+from db import User, Exercise, Workout, Set, WorkoutType
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'fdgdfgdfggf786hfg6hfg6h7f'
-# app.config['DEBUG'] = True
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql+psycopg2://postgres@localhost/workouts'
 # app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 # db.init_app(app)
 # db.create_all()
 menu = [{'name': 'Тренировка', 'url': 'add_workout'},
         {'name': 'Список тренировок', 'url': 'show_workouts'},
-        {'name': 'Добавить упражнение', 'url': 'add_exercise'},
         {'name': 'Добавить сет', 'url': 'add_set'},
-        {'name': 'Список упражнений', 'url': 'show_exercises'},
+        {'name': 'Упражнения', 'url': 'show_exercises'},
+        {'name': 'Добавить упражнение', 'url': 'add_exercise'},
         ]
 
 
@@ -79,40 +82,104 @@ def add_user():
 
 @app.route('/stop-set', methods=['POST'])
 def stop_set():
-    current_set = db.session.query(Sets).order_by(desc(Sets.id)).first()
+    current_set = db.session.query(Set).order_by(desc(Set.id)).first()
     current_set.stop = datetime.datetime.now()
+    current_workout = db.session.execute(
+        db.select(Workout).order_by(desc(Workout.date))).scalar()
+    # last_set = current_workout.sets[-2] if current_workout.sets else None
     current_set.rest = datetime.timedelta(seconds=int(request.form['rest']))
+    # current_set.rest = last_set.stop - current_set.start
     current_set.duration = current_set.stop - current_set.start
     current_set.reps = request.form['reps'] if request.form['reps'] else 0
     current_set.weight = request.form['weight'] if request.form['weight'] else 0
 
     if db.session.commit():
         flash('Ошибка добавления', category='error')
-
-    flash('Сет добавлен', category='success')
+    flash('Завершение сета', category='success')
     return redirect(url_for('add_set'))
 
 
 @app.route('/add-set', methods=['POST', 'GET'])
 def add_set():
-    current_workout = db.session.execute(db.select(Workout).order_by(desc(Workout.date))).first()[0]
+    # current_workout = db.session.execute(db.select(Workout).order_by(desc(Workout.date))).first()[0]
+    current_workout = db.session.execute(
+        db.select(Workout).order_by(desc(Workout.date))).scalar()
     current_workout_id = current_workout.id
     current_workout_type_id = current_workout.workout_type_id
 
-    last_set = db.session.query(Sets).order_by(desc(Sets.id)).first()
-
-    exercises = (db.session.query(Exercise)
-                 .join(WorkoutType, Exercise.workout_type_id == current_workout_type_id)
-                 .order_by(WorkoutType.type, Exercise.title)
-                 .all())
-
+    last_set = current_workout.sets[-1] if current_workout.sets else None
     last_exercise_title = last_set.exercise.title if last_set else ''
 
+    # workouts = (
+    #     db.session.query(Workout)
+    #     .options(joinedload(Workout.sets).joinedload(Set.exercise))
+    #     .filter(Workout.workout_type_id == current_workout_type_id)
+    #     .order_by(desc(Workout.date))
+    #     .limit(2)
+    #     .all()
+    # )
+
+    # last_workout = workouts[1] if len(workouts) > 1 else None
+    last_workout_sets_data = {}
+    # if last_workout:
+    #     last_workout_sets = list(last_workout.sets)
+    #     last_workout_sets.sort(key=lambda s: s.start)
+    #     sorted_sets = sorted(last_workout_sets, key=lambda s: s.exercise.title)
+    #     grouped_sets = groupby(sorted_sets, key=lambda s: s.exercise.title)
+    #
+    #     for exercise_title, sets_group in grouped_sets:
+    #         last_workout_sets_data[exercise_title] = []
+    #
+    #         for sn, set_item in enumerate(sets_group, start=1):
+    #             set_info = {
+    #                 'sn': sn,
+    #                 'weight': set_item.weight,
+    #                 'reps': set_item.reps,
+    #                 'duration': set_item.duration.strftime('%M:%S') if set_item.duration else 0,
+    #             }
+    #
+    #             last_workout_sets_data[exercise_title].append(set_info)
+
+    exercises = (
+        db.session.query(Exercise)
+        .join(WorkoutType, Exercise.workout_type_id == current_workout_type_id)
+        .order_by(WorkoutType.type, Exercise.title)
+        .all()
+    )
+
+    # current_set_sn = cache.get('current_set_sn')
+    # if not current_set_sn:
+    #     current_set_sn = 0
+    #     cache.set('current_set_sn', current_set_sn, timeout=60 * 60)
+    #
+
+    # exercises = cache.get('exercises')
+    #
+    # if not exercises:
+    #     exercises = (
+    #         db.session.query(Exercise)
+    #         .join(WorkoutType, Exercise.workout_type_id == current_workout_type_id)
+    #         .order_by(WorkoutType.type, Exercise.title)
+    #         .all()
+    #     )
+    #     cache.set('exercises', exercises, timeout=60 * 60)
+
     if request.method == 'POST':
-        new_set = Sets(
+        exercise_id = int(request.form['exercise'])
+        current_serial_set = cache.get('current_serial_set')
+
+        if current_serial_set and last_set and last_set.exercise.id == exercise_id:
+            current_serial_set += 1
+            cache.set('current_serial_set', current_serial_set, timeout=60 * 60)
+        else:
+            current_serial_set = 1
+            cache.set('current_serial_set', current_serial_set, timeout=60 * 60)
+
+        new_set = Set(
             workout_id=current_workout_id,
-            exercise_id=request.form['exercise'],
+            exercise_id=exercise_id,
             start=datetime.datetime.now(),
+            index=current_serial_set
         )
 
         db.session.add(new_set)
@@ -123,7 +190,27 @@ def add_set():
             flash('Ошибка добавления', category='error')
 
     return render_template('set/add_set.html', title='Добавить сет', menu=menu, exercises=exercises,
-                           last_exercise_title=last_exercise_title)
+                           last_exercise_title=last_exercise_title, last_workout_sets=last_workout_sets_data)
+
+
+@app.route('/update_set/<int:set_id>', methods=['GET', 'POST'])
+def update_set(set_id):
+    # Получаем информацию о сете по set_id
+    # set_info = db.execute(db.select('Set').where(set.id == set_id)).fetchone()
+    set_info = db.get_or_404(Set, set_id)
+    if request.method == 'POST':
+        set_info.index = request.form['index'],
+        set_info.reps = request.form['reps'],
+        set_info.weight = request.form['weight'],
+        set_info.start = request.form['start'],  # Обновите в соответствии с вашими потребностями
+        set_info.stop = request.form['stop'],  # Обновите в соответствии с вашими потребностями
+        set_info.duration = request.form['duration'],  # Обновите в соответствии с вашими потребностями
+        set_info.rest = request.form['rest']
+        db.session.commit()
+        # return redirect(url_for('show_exercises'))
+        return render_template('set/update_set.html', set_info=set_info, menu=menu)
+    else:
+        return render_template('set/update_set.html', set_info=set_info)
 
 
 @app.route('/add-exercise', methods=['POST', 'GET'])
@@ -143,7 +230,7 @@ def add_exercise():
 @app.route('/exercises')
 def show_exercises():
     exercises = db.session.execute(db.select(Exercise).order_by(Exercise.title)).scalars()
-    return render_template('exercise/exercises.html', exercises=exercises, title='Список упражнений', menu=menu)
+    return render_template('exercise/exercises.html', exercises=exercises, title='Упражнения', menu=menu)
 
 
 @app.route('/exercise/<exercise_id>', methods=['GET', 'POST'])
@@ -211,7 +298,7 @@ def show_workouts():
 def delete_workout(workout_id):
     workout = db.session.get(Workout, workout_id)
     if workout:
-        db.session.query(Sets).filter(Sets.workout_id == workout_id).delete()
+        db.session.query(Set).filter(Set.workout_id == workout_id).delete()
         db.session.delete(workout)
         if not db.session.commit():
             flash('Тренировка удалена', category='success')
@@ -223,15 +310,15 @@ def delete_workout(workout_id):
     return redirect(url_for('show_workouts'))
 
 
-@app.route('/login', methods=['POST', 'GET'])
-def login():
-    if 'userLogged' in session:
-        return redirect(url_for('user', username=session['userLogged']))
-    elif request.method == 'POST' and request.form['username'] == 'selfedu' and request.form['psw'] == '123':
-        session['userLogged'] = request.form['username']
-        return redirect(url_for('user', username=session['userLogged']))
-
-    return render_template('login.html', title='Авторизация', menu=menu)
+# @app.route('/login', methods=['POST', 'GET'])
+# def login():
+#     if 'userLogged' in session:
+#         return redirect(url_for('user', username=session['userLogged']))
+#     elif request.method == 'POST' and request.form['username'] == 'selfedu' and request.form['psw'] == '123':
+#         session['userLogged'] = request.form['username']
+#         return redirect(url_for('user', username=session['userLogged']))
+#
+#     return render_template('login.html', title='Авторизация', menu=menu)
 
 
 @app.errorhandler(401)
@@ -244,32 +331,32 @@ def page_not_found(error):
     return render_template('page404.html', title='Страница не найдена', menu=menu), 404
 
 
-@app.route('/test', methods=['POST', 'GET'])
-def test():
-    current_workout = db.session.execute(db.select(Workout).order_by(desc(Workout.date))).first()[0]
-    current_workout_type_id = current_workout.workout_type_id
-    # current_workout_type_id = 1
-    exercises = db.session.query(Exercise).join(WorkoutType,
-                                                Exercise.workout_type_id == current_workout_type_id).order_by(
-        WorkoutType.type, Exercise.title).all()
-    if request.method == 'POST':
-        workout_id = current_workout.id
-        set = Sets(
-            reps=request.form['reps'] if request.form['reps'] else 0,
-            weight=request.form['weight'] if request.form['weight'] else 0,
-            workout_id=workout_id,
-            exercise_id=request.form['exercise'],
-            # duration=datetime.timedelta(seconds=int(request.form['duration']) if request.form['duration'] else 0),
-            rest=datetime.timedelta(seconds=int(request.form['rest']) if request.form['rest'] else 0),
-        )
-        # current_workout.duration = current_workout.duration + datetime.datetime.now()
-        # db.session.add(set)
-        # if not db.session.commit():
-        #     flash('Сет добавлен', category='success')
-        # else:
-        #     flash('Ошибка добавления', category='error')
-        print(request.form['rest'])
-    return render_template('test.html', title='Добавить сет', menu=menu, exercises=exercises)
+# @app.route('/test', methods=['POST', 'GET'])
+# def test():
+#     current_workout = db.session.execute(db.select(Workout).order_by(desc(Workout.date))).first()[0]
+#     current_workout_type_id = current_workout.workout_type_id
+#     # current_workout_type_id = 1
+#     exercises = db.session.query(Exercise).join(WorkoutType,
+#                                                 Exercise.workout_type_id == current_workout_type_id).order_by(
+#         WorkoutType.type, Exercise.title).all()
+#     if request.method == 'POST':
+#         workout_id = current_workout.id
+#         set = Set(
+#             reps=request.form['reps'] if request.form['reps'] else 0,
+#             weight=request.form['weight'] if request.form['weight'] else 0,
+#             workout_id=workout_id,
+#             exercise_id=request.form['exercise'],
+#             # duration=datetime.timedelta(seconds=int(request.form['duration']) if request.form['duration'] else 0),
+#             rest=datetime.timedelta(seconds=int(request.form['rest']) if request.form['rest'] else 0),
+#         )
+#         # current_workout.duration = current_workout.duration + datetime.datetime.now()
+#         # db.session.add(set)
+#         # if not db.session.commit():
+#         #     flash('Сет добавлен', category='success')
+#         # else:
+#         #     flash('Ошибка добавления', category='error')
+#         print(request.form['rest'])
+#     return render_template('test.html', title='Добавить сет', menu=menu, exercises=exercises)
 
 
 def test_request():

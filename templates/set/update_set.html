@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  {{ super() }}
+  <h2>Редактирование сета</h2>
+  <form method="post">
+    <label for="index">Индекс:</label>
+    <input type="text" name="index" value="{{ set_info.index }}" required><br>
+
+    <label for="reps">Повторы:</label>
+    <input type="text" name="reps" value="{{ set_info.reps }}" required><br>
+
+    <label for="weight">Вес:</label>
+    <input type="text" name="weight" value="{{ set_info.weight }}" required><br>
+
+    <label for="start">Начало:</label>
+    <input type="text" name="start" value="{{ set_info.start }}"><br>
+
+    <label for="stop">Окончание:</label>
+    <input type="text" name="stop" value="{{ set_info.stop }}"><br>
+
+    <label for="duration">Продолжительность:</label>
+    <input type="text" name="duration" value="{{ set_info.duration }}"><br>
+
+    <label for="rest">Отдых:</label>
+    <input type="text" name="rest" value="{{ set_info.rest }}"><br>
+
+    <input type="submit" value="Сохранить">
+  </form>
+{% endblock %}
