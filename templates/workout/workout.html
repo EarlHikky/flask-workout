@@ -17,19 +17,22 @@
       {% set firstSet = sorted_sets[0] %}
       <tr>
         <td rowspan="{{ sorted_sets|length }}">{{ title }}</td>
+        <td>{{ firstSet.id }}</td>
         <td><a href="{{ url_for('update_set', set_id=firstSet.id) }}" class="workout-link"> {{ firstSet.index }} </a></td>
         <td>{{ firstSet.reps }}</td>
         <td>{{ firstSet.weight }}</td>
-        <td>{{ firstSet.duration.strftime('%M:%S') }}</td>
-        <td>{{ firstSet.rest.strftime('%M:%S') }}</td>
+        <td>{% if firstSet.duration %}{{ firstSet.duration.strftime('%M:%S') }}{% else %}В процессе{% endif %}</td>
+        <td>{% if firstSet.rest %}{{ firstSet.rest.strftime('%M:%S') }}{% else %}В процессе{% endif %}</td>
       </tr>
       {% for set in sorted_sets[1:] %}
         <tr>
+          <td>{{ set.id }}</td>
           <td><a href="{{ url_for('update_set', set_id=set.id) }}" class="workout-link"> {{ set.index }}  </a></td>
           <td>{{ set.reps }}</td>
           <td>{{ set.weight }}</td>
-          <td>{{ set.duration.strftime('%M:%S') }}</td>
-          <td>{{ set.rest.strftime('%M:%S') }}</td>
+          <td>{% if set.duration %}{{ set.duration.strftime('%M:%S') }}{% else %}В процессе{% endif %}</td>
+          <td>{% if set.rest %}{{ set.rest.strftime('%M:%S') }}{% else %}В процессе{% endif %}</td>
+
         </tr>
       {% endfor %}
     <tr style="height: 10px;"></tr> <!--  Пустая строка между блоками -->

@@ -58,7 +58,7 @@ class Set(Base):
     exercise_id = Column(Integer, ForeignKey('exercises.id'))
     exercise = relationship('Exercise')
     start = Column(DateTime())
-    stop = Column(DateTime(), default=datetime.now)
+    stop = Column(DateTime())
     duration = Column(Time())
     rest = Column(Time())
 

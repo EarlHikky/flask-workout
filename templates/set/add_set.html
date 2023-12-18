@@ -2,11 +2,12 @@
 
 {% block content %}
   {{ super() }}
+
 <form action="{{ url_for('add_set') }}" method="post" class="form-contact">
   <p><label for="exercise">Упражнение: </label>
     <select name="exercise" id="exercise">
       {% for exercise in exercises %}
-        <option value="{{ exercise.id }}" {% if exercise.title == last_exercise_title %}selected{% endif %}>{{ exercise.title }}</option>
+        <option value="{{ exercise.id }}" {% if exercise.title == last_set_exercise_title %}selected{% endif %}>{{ exercise.title }}</option>
       {% endfor %}
     </select>
   </p>
@@ -14,6 +15,7 @@
 </form>
 
 <form action="{{ url_for('stop_set') }}" method="post" class="form-contact">
+
       <p><label>Повторы: </label> <input type="text" name="reps" value="" /></p>
   <p><label>Вес: </label> <input type="text" name="weight" value="" /></p>
     <p>
@@ -47,8 +49,15 @@
  </table>
 <p><input type="submit" value="Стоп" /></p>
 </form>
+
 <form action="{{url_for('stop_workout')}}" method="post" class="form-contact">
     <input type="submit" value="Завершить тренировку">
 </form>
+
+<!--  {% if last_set_exercise_title %}-->
+<!--    <p>Выбрано упражнение: {{ last_set_exercise_title }}</p>-->
+<!--  {% endif %}-->
+<!--{{ exercise_title }}-->
+<!-- {{ last_workout_sets_data.get('Бриллианты') }}-->
 {% endblock %}
 

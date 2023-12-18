@@ -27,4 +27,9 @@
 
     <input type="submit" value="Сохранить">
   </form>
+  <form action="{{ url_for('delete_set', set_id=set_info.id) }}" method="post">
+    <input type="submit" value="Удалить сет">
+  </form>
+
+
 {% endblock %}
