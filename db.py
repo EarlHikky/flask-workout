@@ -12,6 +12,7 @@ engine.connect()
 Base = declarative_base()
 
 
+
 class User(Base):
     __tablename__ = 'users'
     id = Column(Integer, primary_key=True)
@@ -44,12 +45,13 @@ class Workout(Base):
     type = relationship('WorkoutType')
     duration = Column(Time())
     user_id = Column(Integer, ForeignKey('users.id'))
-    sets = relationship('Sets', backref='workout')
+    sets = relationship('Set', backref='workout')
 
 
-class Sets(Base):
+class Set(Base):
     __tablename__ = 'sets'
     id = Column(Integer, primary_key=True)
+    index = Column(Integer())
     reps = Column(Integer())
     weight = Column(Float())
     workout_id = Column(Integer, ForeignKey('workouts.id'))

@@ -17,7 +17,11 @@
            {{ workout.date.strftime('%d.%m.%Y') }}
          </a>
        </td>
+       {% if workout.duration %}
        <td>{{ workout.duration.strftime('%H:%M:%S') }}</td>
+       {% else %}
+       <td>В процессе</td>
+       {% endif %}
        <td>{{ workout.type }}</td>
      </tr>
      {% endfor %}
