@@ -51,7 +51,6 @@ class Workout(Base):
 class Set(Base):
     __tablename__ = 'sets'
     id = Column(Integer, primary_key=True)
-    serial = Column(Integer())
     index = Column(Integer())
     reps = Column(Integer())
     weight = Column(Float())

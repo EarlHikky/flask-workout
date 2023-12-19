@@ -11,18 +11,19 @@
       <th>Продолжительность</th>
       <th>Отдых</th>
     </tr>
-    {% set uniqueTitles = workout.sets|groupby('exercise.title') %}
-    {% for title, sets in uniqueTitles %}
+    {% set unique_titles = workout.sets|groupby('exercise.title') %}
+    {% for title, sets in unique_titles %}
       {% set sorted_sets = sets|sort(attribute='index') %}
-      {% set firstSet = sorted_sets[0] %}
+      {{ sorted_sets }}
+      {% set first_set = sorted_sets[0] %}
       <tr>
         <td rowspan="{{ sorted_sets|length }}">{{ title }}</td>
-<!--        <td>{{ firstSet.id }}</td>-->
-        <td><a href="{{ url_for('update_set', set_id=firstSet.id) }}" class="workout-link"> {{ firstSet.index }} </a></td>
-        <td>{{ firstSet.reps }}</td>
-        <td>{{ firstSet.weight }}</td>
-        <td>{% if firstSet.duration %}{{ firstSet.duration.strftime('%M:%S') }}{% else %}В процессе{% endif %}</td>
-        <td>{% if firstSet.rest %}{{ firstSet.rest.strftime('%M:%S') }}{% else %}В процессе{% endif %}</td>
+<!--        <td>{{ first_set.id }}</td>-->
+        <td><a href="{{ url_for('update_set', set_id=first_set.id) }}" class="workout-link"> {{ first_set.index }} </a></td>
+        <td>{{ first_set.reps }}</td>
+        <td>{{ first_set.weight }}</td>
+        <td>{% if first_set.duration %}{{ first_set.duration.strftime('%M:%S') }}{% else %}В процессе{% endif %}</td>
+        <td>{% if first_set.rest %}{{ first_set.rest.strftime('%M:%S') }}{% else %}В процессе{% endif %}</td>
       </tr>
       {% for set in sorted_sets[1:] %}
         <tr>

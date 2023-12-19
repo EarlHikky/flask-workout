@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block content %}
+ {{ super() }}
+
+ <table>
+ <tr>
+   <th>Упражнение</th>
+   <th>Сет</th>
+   <th>Повторы</th>
+   <th>Вес</th>
+   <th>Продолжительность</th>
+   <th>Отдых</th>
+ </tr>
+ {% for title, sets in context.sets %}
+   {% set list_sets = sets|list %}
+   {% set first_set = list_sets[0] %}
+   <tr>
+     <td rowspan="{{ list_sets|length }}">{{ title }}</td>
+     <td><a href="{{ url_for('update_set', set_id=first_set.id) }}" class="workout-link"> {{ first_set.index }} </a></td>
+     <td>{{ first_set.reps }}</td>
+     <td>{{ first_set.weight }}</td>
+     <td>{% if first_set.duration %}{{ first_set.duration.strftime('%M:%S') }}{% else %}В процессе{% endif %}</td>
+     <td>{% if first_set.rest %}{{ first_set.rest.strftime('%M:%S') }}{% else %}В процессе{% endif %}</td>
+   </tr>
+   {% for set in list_sets[1:] %}
+     <tr>
+       <td><a href="{{ url_for('update_set', set_id=set.id) }}" class="workout-link"> {{ set.index }} </a></td>
+       <td>{{ set.reps }}</td>
+       <td>{{ set.weight }}</td>
+       <td>{% if set.duration %}{{ set.duration.strftime('%M:%S') }}{% else %}В процессе{% endif %}</td>
+       <td>{% if set.rest %}{{ set.rest.strftime('%M:%S') }}{% else %}В процессе{% endif %}</td>
+     </tr>
+   {% endfor %}
+   <tr style="height: 10px;"></tr> <!-- Пустая строка между блоками -->
+ {% endfor %}
+ </table>
+
+ <form action="{{ url_for('delete_workout', workout_id=context.workout_id) }}" method="post">
+ <input type="submit" value="Удалить тренировку">
+ </form>
+
+{% endblock %}
