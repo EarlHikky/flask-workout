@@ -83,15 +83,39 @@ def add_user():
     return render_template('user/add_user.html', title='Добавить пользователя', menu=menu)
 
 
+# @app.route('/stop-set', methods=['POST'])
+# def stop_set():
+#     if request.method == 'POST':
+#         current_set = db.session.query(Set).order_by(desc(Set.id)).first()
+#         current_set.stop = datetime.datetime.now().replace(microsecond=0)
+#         current_workout = db.session.query(Workout).order_by(desc(Workout.date)).first()
+#         # last_set = current_workout.sets[-2] if current_workout.sets else None
+#         current_set.rest = datetime.timedelta(seconds=int(request.form['rest']))
+#         # current_set.rest = last_set.stop - current_set.start
+#         current_set.duration = current_set.stop - current_set.start
+#         current_set.reps = request.form['reps'] if request.form['reps'] else 0
+#         current_set.weight = request.form['weight'] if request.form['weight'] else 0
+#
+#         if db.session.commit():
+#             flash('Ошибка добавления', category='error')
+#         flash('Завершение сета', category='success')
+#         return redirect(url_for('start_set'))
+
 @app.route('/stop-set', methods=['POST'])
 def stop_set():
     if request.method == 'POST':
         current_set = db.session.query(Set).order_by(desc(Set.id)).first()
         current_set.stop = datetime.datetime.now().replace(microsecond=0)
         current_workout = db.session.query(Workout).order_by(desc(Workout.date)).first()
-        # last_set = current_workout.sets[-2] if current_workout.sets else None
+        current_workout_sets = current_workout.sets
+
+        if len(current_workout_sets) > 1:
+            current_workout_sets.sort(key=lambda x: x.index)
+            last_set = current_workout.sets[-2] if current_workout.sets else None
+            last_set.rest = current_set.start - last_set.stop
+            db.session.commit()
+
         current_set.rest = datetime.timedelta(seconds=int(request.form['rest']))
-        # current_set.rest = last_set.stop - current_set.start
         current_set.duration = current_set.stop - current_set.start
         current_set.reps = request.form['reps'] if request.form['reps'] else 0
         current_set.weight = request.form['weight'] if request.form['weight'] else 0
@@ -100,7 +124,6 @@ def stop_set():
             flash('Ошибка добавления', category='error')
         flash('Завершение сета', category='success')
         return redirect(url_for('start_set'))
-    # return render_template('set/stop_set.html', title='Добавить сет', menu=menu)
 
 
 # @app.route('/add-set', methods=['GET', 'POST'])
@@ -193,7 +216,6 @@ def add_set():
     workout_id = int(request.form['workout_id'])
     set_index = int(request.form['set_index'])
     exercise_id = int(request.form['exercise_id'])
-    ic(workout_id, set_index, exercise_id)
     new_set = Set(
         index=set_index,
         workout_id=workout_id,

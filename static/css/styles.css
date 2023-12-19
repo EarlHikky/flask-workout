@@ -139,3 +139,12 @@ table tbody tr:nth-child(even) {
 #formContainer.hidden {
  opacity: 0;
 }
+
+
+.alert-container {
+  position: relative;
+}
+
+.alert {
+  position: absolute;
+}

@@ -6,7 +6,7 @@
   <div id="formContainer" style="display: block;">
     <form id="start-form" action="{{ url_for('add_set') }}" method="post" class="form-contact">
         <p>
-          <label>Упражнение: {{ context.exercise_title }}</label>
+          <label>{{ context.exercise_title }}</label>
           <input type="hidden" name="exercise_id" value="{{ context.exercise_id }}">
           <input type="hidden" name="set_index" value="{{ context.current_set_index }}">
           <input type="hidden" name="workout_id" value="{{ context.current_workout_id }}">
