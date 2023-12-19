@@ -130,3 +130,12 @@ table tbody tr:nth-child(odd) {
 table tbody tr:nth-child(even) {
    background: #F7F7F7;
 }
+
+#formContainer {
+ opacity: 1;
+ transition: opacity .5s;
+}
+
+#formContainer.hidden {
+ opacity: 0;
+}

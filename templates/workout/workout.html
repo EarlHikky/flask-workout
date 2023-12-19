@@ -17,7 +17,7 @@
       {% set firstSet = sorted_sets[0] %}
       <tr>
         <td rowspan="{{ sorted_sets|length }}">{{ title }}</td>
-        <td>{{ firstSet.id }}</td>
+<!--        <td>{{ firstSet.id }}</td>-->
         <td><a href="{{ url_for('update_set', set_id=firstSet.id) }}" class="workout-link"> {{ firstSet.index }} </a></td>
         <td>{{ firstSet.reps }}</td>
         <td>{{ firstSet.weight }}</td>
@@ -26,7 +26,7 @@
       </tr>
       {% for set in sorted_sets[1:] %}
         <tr>
-          <td>{{ set.id }}</td>
+<!--          <td>{{ set.id }}</td>-->
           <td><a href="{{ url_for('update_set', set_id=set.id) }}" class="workout-link"> {{ set.index }}  </a></td>
           <td>{{ set.reps }}</td>
           <td>{{ set.weight }}</td>

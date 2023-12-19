@@ -2,8 +2,8 @@
 
 {% block content %}
   {{ super() }}
-
-<form action="{{ url_for('add_set') }}" method="post" class="form-contact">
+<div id="formContainer" style="display: block;">
+<form id="start-form" action="{{ url_for('add_set') }}" method="post" class="form-contact">
   <p><label for="exercise">Упражнение: </label>
     <select name="exercise" id="exercise">
       {% for exercise in exercises %}
@@ -11,13 +11,15 @@
       {% endfor %}
     </select>
   </p>
-  <p><input type="submit" value="Старт" /></p>
+  <p><input id="hideFormButton" type="submit" value="Старт" /></p>
 </form>
+</div>
 
 <form action="{{ url_for('stop_set') }}" method="post" class="form-contact">
 
-      <p><label>Повторы: </label> <input type="text" name="reps" value="" /></p>
-  <p><label>Вес: </label> <input type="text" name="weight" value="" /></p>
+  <p><label>Повторы: </label> <input type="text" name="reps" id="reps" value="" /></p>
+    <p><label>Вес: </label> <input type="text" name="weight" id="weight" value="" /></p>
+
     <p>
    <label>Отдых: </label>
  <table>
@@ -54,10 +56,39 @@
     <input type="submit" value="Завершить тренировку">
 </form>
 
-<!--  {% if last_set_exercise_title %}-->
-<!--    <p>Выбрано упражнение: {{ last_set_exercise_title }}</p>-->
-<!--  {% endif %}-->
-<!--{{ exercise_title }}-->
-<!-- {{ last_workout_sets_data.get('Бриллианты') }}-->
+<script>
+const hideButton = document.querySelector('#hideFormButton');
+const showButton = document.querySelector('#showFormButton');
+const formContainer = document.querySelector('#formContainer');
+
+hideButton.addEventListener('click', (event) => {
+ event.preventDefault();
+
+ // Отправка формы
+ const form = document.querySelector('#formContainer form');
+ const formData = new FormData(form);
+ fetch(form.action, {
+ method: form.method,
+ body: formData
+ }).then(response => {
+ // Скрытие формы
+ formContainer.style.display = 'none';
+ });
+});
+</script>
+<!--<script>-->
+<!--    document.getElementById('exercise').addEventListener('change', function() {-->
+<!--        var selectedExerciseId = this.value;-->
+<!--        console.log('Выбранное упражнение:', selectedExerciseId);-->
+
+<!--    });-->
+<!--</script>-->
+
+<script>
+    var selectedExercise = document.getElementById('exercise').value;
+    console.log('Текущее выбранное упражнение:', selectedExercise);
+</script>
+
+
 {% endblock %}
 

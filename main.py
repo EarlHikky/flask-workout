@@ -22,10 +22,10 @@ cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 # db.init_app(app)
 # db.create_all()
 menu = [
-    {'name': 'Список тренировок', 'url': 'show_workouts'},
+    {'name': 'Тренировки', 'url': 'show_workouts'},
     {'name': 'Добавить сет', 'url': 'add_set'},
-    {'name': 'Список упражнений', 'url': 'show_exercises'},
-    {'name': 'Добавить упражнение', 'url': 'add_exercise'},
+    {'name': 'Упражнения', 'url': 'show_exercises'},
+    # {'name': 'Добавить упражнение', 'url': 'add_exercise'},
 ]
 
 
@@ -97,7 +97,7 @@ def stop_set():
 
         if db.session.commit():
             flash('Ошибка добавления', category='error')
-        # flash('Завершение сета', category='success')
+        flash('Завершение сета', category='success')
         return redirect(url_for('add_set'))
     # return render_template('set/stop_set.html', title='Добавить сет', menu=menu)
 
@@ -117,16 +117,11 @@ def add_set():
     last_workout = db.session.query(Workout).options(joinedload(Workout.sets).joinedload(Set.exercise)).filter(
         Workout.workout_type_id == current_workout_type_id).order_by(desc(Workout.date)).limit(2).all()[-1]
 
-    ic(last_workout.date)
-
     last_set_exercise_title = ''
     if len(current_workout.sets) > 0:
         last_set = db.session.query(Set).order_by(desc(Set.id)).first()
         if last_set:
-            ic(last_set.start)
-            last_set_exercise_id = last_set.exercise_id
             last_set_exercise_title = last_set.exercise.title
-            ic(last_set, last_set_exercise_id, last_set_exercise_title)
 
     last_workout_sets_data = {}
     if last_workout:
@@ -135,23 +130,21 @@ def add_set():
         sorted_sets = sorted(last_workout_sets, key=lambda s: s.exercise.title)
         grouped_sets = groupby(sorted_sets, key=lambda s: s.exercise.title)
 
-
         for exercise_title, sets_group in grouped_sets:
-            last_workout_sets_data[exercise_title] = []
+            last_workout_sets_data[exercise_title] = {}
 
             for set_item in sets_group:
+                set_index = set_item.index
                 set_info = {
-                    'index': set_item.index,
                     'weight': set_item.weight,
                     'reps': set_item.reps,
-                    'duration': set_item.duration.strftime('%M:%S') if set_item.duration else 0,
-                    # 'rest': set_item.rest.strftime('%M:%S') if set_item.rest else 0,
+                    'duration': set_item.duration.strftime('%M:%S') if set_item.duration else '0:00',
+                    'rest': set_item.rest.strftime('%M:%S') if set_item.rest else '0:00',
                 }
 
-                last_workout_sets_data[exercise_title].append(set_info)
-
-
-
+                last_workout_sets_data[exercise_title][f'set_{set_index}'] = set_info
+    ic(last_workout_sets_data)
+    current_exercise_id = None
     exercises = cache.get('exercises')
     if not exercises:
         exercises = (
@@ -164,11 +157,10 @@ def add_set():
 
     current_set_index = 1
     if request.method == 'POST':
-        exercise_id = int(request.form['exercise'])
-        ic(exercise_id)
+        current_exercise_id = int(request.form['exercise'])
 
         if current_workout.sets:
-            filtered_sets = [s for s in current_workout.sets if s.exercise_id == exercise_id]
+            filtered_sets = [s for s in current_workout.sets if s.exercise_id == current_exercise_id]
             last_set_index = max(filtered_sets, key=lambda s: s.index) if filtered_sets else None
 
             if last_set_index:
@@ -177,19 +169,20 @@ def add_set():
         new_set = Set(
             index=current_set_index,
             workout_id=current_workout_id,
-            exercise_id=exercise_id,
+            exercise_id=current_exercise_id,
             start=datetime.datetime.now().replace(microsecond=0)
         )
 
         db.session.add(new_set)
+        db.session.commit()
         if not db.session.commit():
-            # flash('Сет добавлен', category='success')
-            return redirect(url_for('stop_set'))
+            flash('Сет добавлен', category='success')
+            # return redirect(url_for('add_set'))
         else:
             flash('Ошибка добавления', category='error')
 
     return render_template('set/add_set.html', title='Добавить сет', menu=menu, exercises=exercises,
-                           current_set_index=current_set_index,
+                           current_set_index=current_set_index, current_exercise_id=current_exercise_id,
                            last_set_exercise_title=last_set_exercise_title,
                            last_workout_sets_data=last_workout_sets_data)
 
@@ -198,6 +191,7 @@ def add_set():
 def update_set(set_id):
     set_info = db.get_or_404(Set, set_id)
     if request.method == 'POST':
+        set_info.index = request.form['serial'],
         set_info.index = request.form['index'],
         set_info.reps = request.form['reps'],
         set_info.weight = request.form['weight'],
