@@ -17,7 +17,7 @@ Before you begin, ensure you have the following requirements installed:
 
 1. Clone the repository:
 
-     git clone https://github.com/earlhikky/workout-tracker-app.git
+     git clone https://github.com/EarlHikky/flask-workout
    
 2. Change into the project directory:
 
