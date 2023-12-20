@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+
+{% block content %}
+ {{ super() }}
+
+ <div id="formContainer" style="display: block;">
+  <form id="start-form" action="{{ url_for('add_set') }}" method="post" class="form-contact">
+    <p>
+      <label for="exercise_id">Упражнение: </label>
+      <select name="exercise_id" id="exercise_id">
+        {% for exercise in exercises %}
+          <option value="{{ exercise.id }}" {% if exercise.title == last_set_exercise_title %}selected{% endif %}>{{ exercise.title }}</option>
+        {% endfor %}
+      </select>
+    </p>
+    <input type="hidden" name="workout_id" value="{{ current_workout_id }}">
+    <input type="hidden" name="set_index" value="{{ set_index }}">
+    <p><input id="hideFormButton" type="submit" value="Старт" /></p>
+  </form>
+ </div>
+
+ <form action="{{ url_for('stop_set') }}" method="post" class="form-contact">
+  <p><label>Повторы: </label> <input type="text" name="reps" id="reps" value="" /></p>
+  <p><label>Вес: </label> <input type="text" name="weight" id="weight" value="" /></p>
+  <p>
+    <label>Отдых: </label>
+    <table>
+      <tr>
+        <input type="text" name="old_rest" id="old_rest" value="{{ rest }}" />
+      </tr>
+      <tr>
+        <td>
+          <div class="radio-container">
+            <input type="radio" id="rest120" name="new_rest" value="120" {% if rest == '00:02:00' %}checked{% endif %}>
+            <label for="rest120">120 сек</label>
+          </div>
+        </td>
+        <td>
+          <div class="radio-container">
+            <input type="radio" id="rest90" name="new_rest" value="90" {% if rest == '00:01:30' %}checked{% endif %}>
+            <label for="rest90">90 сек</label>
+          </div>
+        </td>
+        <td>
+          <div class="radio-container">
+            <input type="radio" id="rest60" name="new_rest" value="60" {% if rest == '00:01:00' %}checked{% endif %}>
+            <label for="rest60">60 сек</label>
+          </div>
+        </td>
+        <td>
+          <div class="radio-container">
+            <input type="radio" id="rest30" name="new_rest" value="30" {% if rest == '00:00:30' %}checked{% endif %}>
+            <label for="rest30">30 сек</label>
+          </div>
+        </td>
+        <td>
+          <div class="radio-container">
+            <input type="radio" id="rest0" name="new_rest" value="30" {% if rest == '00:00:00' %}checked{% endif %}>
+            <label for="rest30">0 сек</label>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </p>
+  <p><input type="submit" value="Стоп" /></p>
+ </form>
+
+ <form action="{{url_for('stop_workout')}}" method="post" class="form-contact">
+  <input type="submit" value="Завершить тренировку">
+ </form>
+
+ <script>
+ const hideButton = document.querySelector('#hideFormButton');
+ const showButton = document.querySelector('#showFormButton');
+ const formContainer = document.querySelector('#formContainer');
+
+ hideButton.addEventListener('click', (event) => {
+  event.preventDefault();
+
+  // Отправка формы
+  const form = document.querySelector('#formContainer form');
+  const formData = new FormData(form);
+  fetch(form.action, {
+    method: form.method,
+    body: formData
+  }).then(response => {
+    // Скрытие формы
+    formContainer.style.display = 'none';
+  });
+ });
+ </script>
+
+{% endblock %}

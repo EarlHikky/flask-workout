@@ -1,44 +1,44 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width">
-    <link type="text/css" href="{{ url_for('static', filename='css/styles.css')}}" rel="stylesheet" />
-  {% block title %}
-    {% if title %}
-      <title>{{ title }}</title>
-    {% endif %}
-  {% endblock %}
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width">
+   <link type="text/css" href="{{ url_for('static', filename='css/styles.css')}}" rel="stylesheet" />
+ {% block title %}
+   {% if title %}
+     <title>{{ title }}</title>
+   {% endif %}
+ {% endblock %}
 </head>
 <body>
 {% block content %}
 <nav>
-  {%- block navbar %}
-  <ul class="navbar">
-  {% for m in menu %}
-    <li class="navbar"><a href="{{ url_for(m.url) }}">{{ m.name }}</a></li>
-  {% endfor %}
-  </ul>
-  {% endblock navbar %}
+ {%- block navbar %}
+ <ul class="navbar">
+ {% for m in menu %}
+   <li class="navbar"><a href="{{ url_for(m.url) }}">{{ m.name }}</a></li>
+ {% endfor %}
+ </ul>
+ {% endblock navbar %}
 </nav>
 
  <div class="container alert-container">
-   <div class="alert alert-info alert-dismissible fade show" role="alert">
-    {% for cat, msg in get_flashed_messages(True) %}
-      <div class="flash {{cat}}" id="flash-message">
-       {{ msg }}
-      </div>
-    {% endfor %}      
-   </div>
+  <div class="alert alert-info alert-dismissible fade show" role="alert">
+   {% for cat, msg in get_flashed_messages(True) %}
+     <div class="flash {{cat}}" id="flash-message">
+      {{ msg }}
+     </div>
+   {% endfor %}
+  </div>
  </div>
 <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
 <script>
-  $(document).ready(function(){
-    // Скрывать сообщение через
-    setTimeout(function(){
-      $("#flash-message").fadeOut("slow");
-    }, 2000);
-  });
+ $(document).ready(function(){
+   // Скрывать сообщение через
+   setTimeout(function(){
+     $("#flash-message").fadeOut("slow");
+   }, 2000);
+ });
 </script>
 
 {% endblock content %}

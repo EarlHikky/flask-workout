@@ -2,29 +2,31 @@
 
 {% block content %}
  {{ super() }}
+
  <div class="workout-list">
-   <h2>Список тренировок</h2>
-   <table>
-     <tr>
-       <th>Дата</th>
-       <th>Продолжительность</th>
-       <th>Тип</th>
-     </tr>
-     {% for workout in workouts %}
-     <tr>
-       <td>
-         <a href="{{ url_for('show_workout', workout_id=workout.id) }}" class="workout-link">
-           {{ workout.date.strftime('%d.%m.%Y') }}
-         </a>
-       </td>
-       {% if workout.duration %}
-        <td>{{ workout.duration.strftime('%H:%M:%S') }}</td>
-       {% else %}
-       <td>В процессе</td>
-       {% endif %}
-       <td>{{ workout.type }}</td>
-     </tr>
-     {% endfor %}
-   </table>
+  <h2>Список тренировок</h2>
+  <table>
+    <tr>
+      <th>Дата</th>
+      <th>Продолжительность</th>
+      <th>Тип</th>
+    </tr>
+    {% for workout in workouts %}
+    <tr>
+      <td>
+        <a href="{{ url_for('show_workout', workout_id=workout.id) }}" class="workout-link">
+          {{ workout.date.strftime('%d.%m.%Y') }}
+        </a>
+      </td>
+      {% if workout.duration %}
+       <td>{{ workout.duration.strftime('%H:%M:%S') }}</td>
+      {% else %}
+      <td>В процессе</td>
+      {% endif %}
+      <td>{{ workout.type }}</td>
+    </tr>
+    {% endfor %}
+  </table>
  </div>
+
 {% endblock %}

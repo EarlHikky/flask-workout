@@ -1,17 +1,21 @@
 {% extends 'base.html' %}
 
 {% block content %}
-  {{ super() }}
-<form action="{{url_for('add_workout')}}" method="post" class="form-contact">
-  <p><label>Тип:</label> <select name="type" id="type">
-    {% for type in types %}
-              <option value="{{ type.id }}">{{ type.type }}</option>
-          {% endfor %}
-      </select></p>
-  <p><input type="submit" value="Начать тренировку" />
-</form>
-<!--<form action="{{url_for('stop_workout')}}" method="post" class="form-contact">-->
-<!--    <input type="submit" value="Завершить тренировку">-->
-<!--</form>-->
+ {{ super() }}
+ <form action="{{url_for('add_workout')}}" method="post" class="form-contact">
+   <p>
+     <label>Тип:</label>
+     <select name="type" id="type">
+       {% for type in types %}
+         <option value="{{ type.id }}">{{ type.type }}</option>
+       {% endfor %}
+     </select>
+   </p>
+   <p>
+     <input type="submit" name="action" value="Продолжить тренировку"/>
+   </p>
+   <p>
+     <input type="submit" name="action" value="Создать новую тренировку"/>
+   </p>
+ </form>
 {% endblock %}
-

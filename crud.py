@@ -10,19 +10,10 @@ engine = create_engine('postgresql+psycopg2://postgres@localhost/workouts')
 Session = sessionmaker(bind=engine)
 
 
-def m():
+def m(i):
     with Session() as session:
+        workout = session.get_one(Workout, i)
 
-        # current_workout = session.execute(select(Workout).order_by(desc(Workout.date))).first()[0]
-        # session.get(Workout, i).duration = timedelta(hours=1)
-        # current_workout = session.get(Workout, i)
-        # current_workout.stop = current_workout.date + timedelta(hours=1)
-        # s = session.get(Set, 160)
-        # s.start = datetime(2023, 12, 12, 21, 3)
-        # s.stop = datetime(2023, 12, 12, 21, 4)
-        # s1 = session.get(Set, 159)
-        # s1.start = datetime(2023, 12, 12, 21, 11)
-        # s1.stop = datetime(2023, 12, 12, 21, 12)
         session.commit()
 
 
