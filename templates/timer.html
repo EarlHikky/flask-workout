@@ -1,23 +1,60 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Таймер и Flask</title>
-</head>
-<body>
-    <form action="{{ url_for('start_timer') }}" method="post">
-        <p><label>Длительность: </label> <input type="text" name="duration" value="" /></p>
-        <p><input type="submit" value="Старт" /></p>
-    </form>
+{% extends 'base.html' %}
 
-    <iframe src="{{ url_for('stop_timer') }}" name="stop_timer_frame" style="display:none;"></iframe>
+{% block content %}
+    {{ super() }}
 
-    <form action="{{ url_for('add_set') }}" method="post" class="form-contact" id="exerciseForm">
-        <p><label>Количество: </label> <input type="text" name="reps" value="" /></p>
-        <p><label>Вес: </label> <input type="text" name="weight" value="" /></p>
-        <p><label>Отдых: </label> <input type="text" name="rest" value="" /></p>
-        <p><input type="submit" value="Добавить" /></p>
-    </form>
-</body>
-</html>
+<div id="timer-container">
+    <div id="timer">{{ rest_time }}</div>
+
+    <audio id="timerSound">
+        <source src="{{ url_for('static', filename='alarm.mp3') }}" type="audio/mp3">
+    </audio>
+
+    <button onclick="stopTimer()">Стоп</button>
+</div>
+
+    <script>
+        var timer;
+        var seconds = {{ rest_time }};
+
+        function startTimer() {
+            timer = setInterval(updateTimer, 1000);
+        }
+
+        function updateTimer() {
+            seconds--;
+
+            if (seconds <= 5) {
+                playTimerSound();  // Воспроизведение звука за 5 секунд до конца таймера
+            }
+
+            if (seconds <= 0) {
+                clearInterval(timer);
+                // Редирект на '/set/start' после завершения таймера
+                window.location.href = '{{ url_for("start_set") }}';
+            }
+
+            document.getElementById('timer').innerHTML = seconds;
+        }
+
+        function stopTimer() {
+            clearInterval(timer);
+            // Редирект на '/set/start' при принудительной остановке
+            window.location.href = '{{ url_for("start_set") }}';
+        }
+
+function playTimerSound() {
+        var audio = document.getElementById('timerSound');
+
+        // Проверяем, поддерживает ли браузер воспроизведение звука
+        if (audio.canPlayType && audio.canPlayType('audio/mpeg;').replace(/no/, '')) {
+            audio.play();
+        } else {
+            alert("Ваш браузер не поддерживает воспроизведение звука.");
+        }
+    }
+
+        // Запуск таймера при загрузке страницы
+        startTimer();
+    </script>
+{% endblock %}

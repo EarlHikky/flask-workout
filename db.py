@@ -31,6 +31,7 @@ class WorkoutType(Base):
 class Exercise(Base):
     __tablename__ = 'exercises'
     id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'))
     title = Column(String(100), nullable=False)
     workout_type_id = Column(String(25), ForeignKey('workout_types.id'))
     type = relationship('WorkoutType')

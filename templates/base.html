@@ -2,8 +2,11 @@
 <html lang="en">
 <head>
    <meta charset="UTF-8">
-   <meta name="viewport" content="width=device-width">
+   <meta name="viewport" content="width=device-width, initial-scale=1">
    <link type="text/css" href="{{ url_for('static', filename='css/styles.css')}}" rel="stylesheet" />
+   <link rel="stylesheet" href="{{ url_for('static', filename='css/fontawesome.min.css') }}">
+
+
  {% block title %}
    {% if title %}
      <title>{{ title }}</title>
@@ -13,12 +16,25 @@
 <body>
 {% block content %}
 <nav>
- {%- block navbar %}
+ {% block navbar %}
+ <div class="navbar">
  <ul class="navbar">
- {% for m in menu %}
-   <li class="navbar"><a href="{{ url_for(m.url) }}">{{ m.name }}</a></li>
- {% endfor %}
+   {% if current_user.is_authenticated %}
+    <!-- Пункты меню для залогиненного пользователя -->
+    {% for m in menu %}
+     <a href="{{ url_for(m.url) }}">{{ m.name }}</a>
+    {% endfor %}
+
+     <div class="dropdown">
+       <button class="dropbtn">
+      <i class="fa fa-caret-down"></i>
+    </button>
+    <div class="dropdown-content">
+      <a href="{{ url_for('logout') }}">Выйти</a>
+     </div>
+    {% endif %}
  </ul>
+ </div>
  {% endblock navbar %}
 </nav>
 

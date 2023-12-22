@@ -1,14 +1,19 @@
 import datetime
+import time
 from itertools import groupby
+from typing import Tuple
 
-from flask import Flask, render_template, url_for, request, flash, redirect, session
+from flask import Flask, render_template, url_for, request, flash, redirect, session, make_response
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, login_required, login_user, logout_user, current_user
 from flask_caching import Cache
 from sqlalchemy import desc
 from sqlalchemy.orm import joinedload
 from icecream import ic
+from werkzeug import Response
 
 from db import User, Exercise, Workout, Set, WorkoutType
+from user import UserLogin
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'fdgdfgdfggf786hfg6hfg6h7f'
@@ -17,14 +22,19 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql+psycopg2://postgres@localhos
 # app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
-cache = Cache(app, config={'CACHE_TYPE': 'simple'})
-
 # db.init_app(app)
 # db.create_all()
 
+cache = Cache(app, config={'CACHE_TYPE': 'simple'})
+
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Авторизуйтесь для доступа к закрытым страницам'
+login_manager.login_message_category = 'info'
+
 menu = [
     {'name': 'Тренировки', 'url': 'show_workouts'},
-    {'name': 'Добавить сет', 'url': 'start_set'},
+    {'name': 'Старт', 'url': 'start_set'},
     {'name': 'Упражнения', 'url': 'show_exercises'},
 ]
 
@@ -32,48 +42,115 @@ menu = [
 # main = Blueprint('main', __name__) # TODO
 
 
-# class User(db.Model):
-#     __tablename__ = 'users'
-#     id = db.Column(db.Integer, db.Sequence('user_id_seq'), primary_key=True)
-#     name = db.Column(db.String(50))
+@login_manager.user_loader
+def load_user(user_id: int) -> UserLogin:
+    return UserLogin(user_id)
 
 
-# @app.route('/users')
-# def users():
-#     users = db.session.execute(db.select(User).order_by(User.name)).scalars()
-#     print(*(u.name for u in users))
-#     return f'Пользователь: {users}'
-def is_new_workout():
-    workout = db.session.execute(db.select(Workout).order_by(desc(Workout.date))).scalar()
-    if not workout.stop:
+@app.route('/login', methods=['POST', 'GET'])
+def login() -> Response | str:
+    if request.method == 'POST':
+        username = request.form['username']
+        user = db.session.execute(db.select(User).filter_by(name=username)).scalar()
+
+        if user is None:
+            # If the user doesn't exist, create a new one
+            new_user = User(name=username)
+            db.session.add(new_user)
+            if not db.session.commit():
+                # If the user is created, log in
+                user_login = UserLogin(new_user.id)
+                login_user(user_login, remember=True)
+
+                flash('Создание нового пользователя', 'success')
+                return redirect(url_for('index'))
+
+            else:
+                flash('Что-то пошло не так', 'error')
+                return redirect(url_for('login'))
+
+        else:
+            # If the user exists, log in
+            user_login = UserLogin(user.id)
+            remember = True if request.form.get('remember') else False
+            login_user(user_login, remember=remember)
+
+            flash('Успешный вход', 'info')
+            return redirect(url_for('index'))
+
+    return render_template('login.html', title='Авторизация')
+
+
+@app.route('/logout')
+@login_required
+def logout() -> Response:
+    logout_user()
+    flash('Вы вышли из системы', 'info')
+    return redirect(url_for('login'))
+
+
+@app.route('/profile')  # TODO
+@login_required
+def profile() -> str:
+    return f'ID пользователя {current_user.id}'
+
+
+def is_new_workout() -> Workout | None:
+    """
+    Check if there is a new workout.
+
+    :return: Workout object or None.
+    """
+    user_id = current_user.id
+    workout = db.session.execute(
+        db.select(Workout).filter(Workout.user_id == user_id).order_by(desc(Workout.date))).scalar()
+    if workout and not workout.stop:
         return workout
 
 
-def get_context(current_workout):
-    current_workout_id = current_workout.id
-    current_workout_type_id = current_workout.workout_type_id
+def get_context(workout: Workout) -> dict:
+    """
+    Get context for template.
 
+    :param workout:
+    :return: Dict with context for template.
+    """
+    workout_id = workout.id
+    workout_type_id = workout.workout_type_id
     exercises = cache.get('exercises')
     if not exercises:
         exercises = (
             db.session.query(Exercise)
-            .join(WorkoutType, Exercise.workout_type_id == current_workout_type_id)
+            .join(WorkoutType, Exercise.workout_type_id == workout_type_id).filter(
+                Exercise.user_id == current_user.id)
             .order_by(WorkoutType.type, Exercise.title)
             .all()
         )
         cache.set('exercises', exercises, timeout=60 * 60)
-
     context = {
         'menu': menu,
         'exercises': exercises,
-        'current_workout_id': current_workout_id,
+        'current_workout_id': workout_id,
     }
-
     return context
 
 
+# @app.route('/register', methods=['POST', 'GET'])
+# def register():
+#     if request.method == 'POST':
+#         user = User(name=request.form['username'])
+#         db.session.add(user)
+#         if not db.session.commit():
+#             flash('Пользователь с таким именем уже существует', 'error')
+#             return render_template('register.html', title='Регистрация')
+#         return redirect(url_for('login'))
+#
+#     return render_template('register.html', title='Регистрация')
+
+
 @app.route('/')
-def index():
+@login_required
+def index() -> Response:
     return redirect(url_for('add_workout'))
 
 
@@ -95,28 +172,33 @@ def index():
 #     # return render_template('user/detail.html', user=user)
 
 
-@app.route('/user/add', methods=['GET', 'POST'])
-def add_user():
-    if request.method == 'POST':
-        user: User = User(
-            name=request.form['name'],
-        )
-        db.session.add(user)
-        db.session.commit()
-        # return redirect(url_for('user_detail', user_id=user.id))
-        return redirect(url_for('add_workout'))
-
-    return render_template('user/add_user.html', title='Добавить пользователя', menu=menu)
+# @app.route('/user/add', methods=['GET', 'POST'])
+# def add_user():
+#     if request.method == 'POST':
+#         user: User = User(
+#             name=request.form['name'],
+#         )
+#         db.session.add(user)
+#         db.session.commit()
+#         # return redirect(url_for('user_detail', user_id=user.id))
+#         return redirect(url_for('add_workout'))
+#
+#     return render_template('user/add_user.html', title='Добавить пользователя', menu=menu)
 
 
 @app.route('/set/start/new', methods=['GET'])
-def start_new_set():
+@login_required
+def start_new_set() -> Response | str:
+    """
+    Start new set without data from last workout.
+
+    :return: Render HTML for start_new_set or Redirect.
+    """
     current_workout = is_new_workout()
     if not current_workout:
         return redirect(url_for('add_workout'))
 
     context = get_context(current_workout)
-
     current_set_index = 1
     last_set_rest = '00:01:30'
     last_set_exercise_title = ''
@@ -127,19 +209,22 @@ def start_new_set():
             last_set_index = last_set.index
             last_set_rest = last_set.rest
             current_set_index = last_set_index + 1
-
     context['last_set_exercise_title'] = last_set_exercise_title
     context['rest'] = last_set_rest
     context['set_index'] = current_set_index
     for item in menu:
         if item['name'] == 'Добавить сет':
             item['url'] = 'start_new_set'
-
     return render_template('set/start_new_set.html', **context)
 
 
 @app.route('/set/start', methods=['GET'])
-def start_set():
+@login_required
+def start_set() -> Response | str:
+    """
+    Start new set
+    :return: Render template or redirect.
+    """
     current_workout = is_new_workout()
     if not current_workout:
         return redirect(url_for('add_workout'))
@@ -151,10 +236,14 @@ def start_set():
     current_workout_sets = current_workout.sets
     current_workout_sets.sort(key=lambda x: x.index)
 
-    last_workout = db.session.query(Workout).options(joinedload(Workout.sets).joinedload(Set.exercise)).filter(
-        Workout.workout_type_id == current_workout_type_id).order_by(desc(Workout.date)).limit(2).all()[-1]
+    user_id = current_user.id
 
-    if last_workout:
+    last_workouts = db.session.query(Workout).options(joinedload(Workout.sets).joinedload(Set.exercise)).filter(
+        Workout.user_id == user_id).filter(
+        Workout.workout_type_id == current_workout_type_id).order_by(desc(Workout.date)).limit(2).all()
+
+    if len(last_workouts) > 1:
+        last_workout = last_workouts[-1]
         last_workout_sets = cache.get('last_workout_sets')
         if not last_workout_sets:
             last_workout_sets = last_workout.sets
@@ -178,17 +267,29 @@ def start_set():
             context['weight'] = last_workout_sets[current_set_index].weight
             context['reps'] = last_workout_sets[current_set_index].reps
             context['duration'] = last_workout_sets[current_set_index].duration
-            context['rest'] = str(last_workout_sets[current_set_index].rest)
+            rest = last_workout_sets[current_set_index].rest
+            seconds = rest.hour * 3600 + rest.minute * 60 + rest.second
+            context['rest'] = seconds
+            # context['rest'] = last_workout_sets[current_set_index].rest
+            ic(context['rest'])  # TODO
 
         else:
             flash('Конец тренировки', category='success')
             return redirect(url_for('stop_workout'))
+    else:
+        return render_template('set/start_new_set.html', **context)
 
     return render_template('set/start_set.html', **context)
 
 
 @app.route('/set/stop', methods=['POST'])
-def stop_set():
+@login_required
+def stop_set() -> str:
+    """
+    Stop current set. Set new rest time for last set.
+
+    :return: Render HTML template.
+    """
     if request.method == 'POST':
         current_set = db.session.query(Set).order_by(desc(Set.id)).first()
         current_set.stop = datetime.datetime.now().replace(microsecond=0)
@@ -200,11 +301,14 @@ def stop_set():
             last_set = current_workout.sets[-2] if current_workout.sets else None
             last_set.rest = current_set.start - last_set.stop
             db.session.commit()
-
+        rest_time = 0
         if 'new_rest' in request.form:
             current_set.rest = datetime.timedelta(seconds=int(request.form['new_rest']))
+            rest_time = int(request.form['new_rest'])
         else:
-            current_set.rest = request.form['old_rest']
+            current_set.rest = datetime.timedelta(seconds=int(request.form['old_rest']))
+            rest_time = int(request.form['old_rest'])
+            # current_set.rest = request.form['old_rest']
         current_set.duration = current_set.stop - current_set.start
         current_set.reps = request.form['reps'] if request.form['reps'] else 0
         current_set.weight = request.form['weight'] if request.form['weight'] else 0
@@ -212,11 +316,22 @@ def stop_set():
         if db.session.commit():
             flash('Ошибка добавления', category='error')
         flash('Завершение сета', category='success')
-        return redirect(request.referrer or '/workouts')
+        # time.sleep(sl_time)
+        # response = make_response('Сет успешно остановлен')  # TODO
+        # response.headers['Custom-Header'] = '123'
+        # return response
+        # return redirect(request.referrer or '/workouts')
+        return render_template('timer.html', menu=menu, rest_time=rest_time)
 
 
 @app.route('/set/add', methods=['POST'])
-def add_set():
+@login_required
+def add_set() -> Response | str:
+    """
+    Add new set.
+
+    :return: Redirect to last page.
+    """
     workout_id = int(request.form['workout_id'])
     set_index = int(request.form['set_index'])
     exercise_id = int(request.form['exercise_id'])
@@ -226,9 +341,7 @@ def add_set():
         exercise_id=exercise_id,
         start=datetime.datetime.now().replace(microsecond=0)
     )
-
     db.session.add(new_set)
-    db.session.commit()
     if not db.session.commit():
         flash('Сет добавлен', category='success')
     else:
@@ -237,7 +350,14 @@ def add_set():
 
 
 @app.route('/set/<int:set_id>', methods=['GET', 'POST'])
-def update_set(set_id):
+@login_required
+def update_set(set_id: int) -> Response | str:
+    """
+    Update workout set.
+
+    :param set_id:
+    :return: Render template or redirect to show_workout page.
+    """
     set_info = db.get_or_404(Set, set_id)
     if request.method == 'POST':
         set_info.index = request.form['index'],
@@ -252,12 +372,18 @@ def update_set(set_id):
             return redirect(url_for('show_workout', workout_id=set_info.workout_id))
         else:
             flash('Ошибка обновления', category='error')
-
     return render_template('set/update_set.html', set_info=set_info, menu=menu)
 
 
 @app.route('/set/<int:set_id>/delete', methods=['POST'])
-def delete_set(set_id):
+@login_required
+def delete_set(set_id: int) -> Response | str:
+    """
+    Delete workout set.
+
+    :param set_id:
+    :return: Redirect to show_workout page.
+    """
     set_info = db.get_or_404(Set, set_id)
     db.session.delete(set_info)
     if not db.session.commit():
@@ -268,27 +394,51 @@ def delete_set(set_id):
 
 
 @app.route('/exercise/add', methods=['POST', 'GET'])
-def add_exercise():
+@login_required
+def add_exercise() -> str:
+    """
+    Add new exercise.
+
+    :return: Rendered template for adding new exercise.
+    """
     types = db.session.execute(db.select(WorkoutType).order_by(WorkoutType.type)).scalars()
     if request.method == 'POST':
-        exercise = Exercise(title=request.form['title'], workout_type_id=request.form['type'])
+        user_id = current_user.id
+        exercise = Exercise(user_id=user_id, title=request.form['title'], workout_type_id=request.form['type'])
         db.session.add(exercise)
         if not db.session.commit():
             flash('Упражнение добавлено', category='success')
         else:
             flash('Ошибка добавления', category='error')
-
     return render_template('exercise/add_exercise.html', title='Добавить упражнение', menu=menu, types=types)
 
 
 @app.route('/exercises')
-def show_exercises():
-    exercises = db.session.execute(db.select(Exercise).order_by(Exercise.title)).scalars()
+@login_required
+def show_exercises() -> str:
+    """
+    Show all exercises.
+
+    :return: Rendered template for the list of exercises.
+    """
+    user_id = current_user.id
+    exercises = db.session.execute(
+        db.select(Exercise)
+        .filter(Exercise.user_id == user_id)
+        .order_by(Exercise.title)
+    ).scalars()
     return render_template('exercise/exercises.html', exercises=exercises, title='Упражнения', menu=menu)
 
 
 @app.route('/exercise/<int:exercise_id>', methods=['GET', 'POST'])
-def update_exercise(exercise_id):
+@login_required
+def update_exercise(exercise_id: int) -> Response | str:
+    """
+    Update an exercise.
+
+    :param exercise_id:
+    :return: Redirect to the list of exercises or HTML template with the updated exercise.
+    """
     exercise = db.get_or_404(Exercise, exercise_id)
     if request.method == 'POST':
         exercise.title = request.form['title']
@@ -303,7 +453,14 @@ def update_exercise(exercise_id):
 
 
 @app.route('/exercise/<int:exercise_id>/delete', methods=['POST'])
-def delete_exercise(exercise_id):
+@login_required
+def delete_exercise(exercise_id: int) -> Response | str:
+    """
+    Delete an exercise.
+
+    :param exercise_id:
+    :return: Redirect to the list of exercises.
+    """
     exercise = db.get_or_404(Exercise, exercise_id)
     db.session.delete(exercise)
     db.session.commit()
@@ -311,10 +468,17 @@ def delete_exercise(exercise_id):
 
 
 @app.route('/workout/add', methods=['POST', 'GET'])
-def add_workout():
+@login_required
+def add_workout() -> Response | str:
+    """
+    Add a new workout.
+
+    :return: Redirect to the start of the new set for the new workout or HTML page displaying the new workout.
+    """
     types = db.session.execute(db.select(WorkoutType).order_by(WorkoutType.type)).scalars()
     if request.method == 'POST':
-        workout = Workout(user_id=1, workout_type_id=request.form['type'])
+        user_id = current_user.id
+        workout = Workout(user_id=user_id, workout_type_id=request.form['type'])
         db.session.add(workout)
         if not db.session.commit():
             flash('Начало тренировки', category='success')
@@ -324,12 +488,18 @@ def add_workout():
                 return redirect(url_for('start_new_set'))
         else:
             flash('Ошибка добавления', category='error')
-
     return render_template('workout/add_workout.html', title='Тренировка', menu=menu, types=types)
 
 
 @app.route('/workout/<int:workout_id>')
-def show_workout(workout_id):
+@login_required
+def show_workout(workout_id: int) -> str:
+    """
+    Show the current workout.
+
+    :param workout_id:
+    :return: HTML page displaying the current workout.
+    """
     workout = db.get_or_404(Workout, workout_id)
     workout_sets = workout.sets
     workout_sets.sort(key=lambda x: x.index)
@@ -344,7 +514,13 @@ def show_workout(workout_id):
 
 
 @app.route('/workout/stop', methods=['GET', 'POST'])
-def stop_workout():
+@login_required
+def stop_workout() -> Response | str:
+    """
+    Stop the current workout.
+
+    :return: Redirect to the list of workouts page.
+    """
     current_workout = db.session.execute(db.select(Workout).order_by(desc(Workout.date))).first()[0]
     current_workout.stop = datetime.datetime.now().replace(microsecond=0)
     current_workout.duration = current_workout.stop - current_workout.date
@@ -355,14 +531,27 @@ def stop_workout():
         flash('Ошибка добавления', category='error')
 
 
-@app.route('/workouts')
-def show_workouts():
-    workouts = db.session.execute(db.select(Workout).order_by(Workout.date)).scalars()
+@app.route('/workout/list')
+@login_required
+def show_workouts() -> str:
+    """
+    List all workouts for current user
+    :return: HTML page displaying the list of workouts.
+    """
+    user_id = current_user.id
+    workouts = db.session.query(Workout).filter_by(user_id=user_id).order_by(Workout.date).all()
     return render_template('workout/workouts.html', workouts=workouts, title='Список тренировок', menu=menu)
 
 
 @app.route('/workout/<int:workout_id>/delete', methods=['POST'])
-def delete_workout(workout_id):
+@login_required
+def delete_workout(workout_id: int) -> Response | str:
+    """
+    Delete a workout and its associated sets.
+
+    :param workout_id: The ID of the workout to be deleted.
+    :return: Redirect to the list of workouts page.
+    """
     workout = db.session.get(Workout, workout_id)
     if workout:
         db.session.query(Set).filter(Set.workout_id == workout_id).delete()
@@ -377,60 +566,26 @@ def delete_workout(workout_id):
     return redirect(url_for('show_workouts'))
 
 
-# @app.route('/login', methods=['POST', 'GET'])
-# def login():
-#     if 'userLogged' in session:
-#         return redirect(url_for('user', username=session['userLogged']))
-#     elif request.method == 'POST' and request.form['username'] == 'selfedu' and request.form['psw'] == '123':
-#         session['userLogged'] = request.form['username']
-#         return redirect(url_for('user', username=session['userLogged']))
-#
-#     return render_template('login.html', title='Авторизация', menu=menu)
-
-
 @app.errorhandler(401)
-def access_denied(error):
+def access_denied(error: Exception) -> Tuple[str, int]:
+    """
+    Error handler for 401 Unauthorized status.
+
+    :param error: The exception object representing the error.
+    :return: Rendered template for the unauthorized access page with a 401 status code.
+    """
     return render_template('page401.html', title='Доступ запрещён', menu=menu), 401
 
 
 @app.errorhandler(404)
-def page_not_found(error):
+def page_not_found(error: Exception) -> Tuple[str, int]:
+    """
+    Error handler for 404 Not Found status.
+
+    :param error: The exception object representing the error.
+    :return: Rendered template for the page not found page with a 404 status code.
+    """
     return render_template('page404.html', title='Страница не найдена', menu=menu), 404
-
-
-# @app.route('/test', methods=['POST', 'GET'])
-# def test():
-#     current_workout = db.session.execute(db.select(Workout).order_by(desc(Workout.date))).first()[0]
-#     current_workout_type_id = current_workout.workout_type_id
-#     # current_workout_type_id = 1
-#     exercises = db.session.query(Exercise).join(WorkoutType,
-#                                                 Exercise.workout_type_id == current_workout_type_id).order_by(
-#         WorkoutType.type, Exercise.title).all()
-#     if request.method == 'POST':
-#         workout_id = current_workout.id
-#         set = Set(
-#             reps=request.form['reps'] if request.form['reps'] else 0,
-#             weight=request.form['weight'] if request.form['weight'] else 0,
-#             workout_id=workout_id,
-#             exercise_id=request.form['exercise'],
-#             # duration=datetime.timedelta(seconds=int(request.form['duration']) if request.form['duration'] else 0),
-#             rest=datetime.timedelta(seconds=int(request.form['rest']) if request.form['rest'] else 0),
-#         )
-#         # current_workout.duration = current_workout.duration + datetime.datetime.now()
-#         # db.session.add(set)
-#         # if not db.session.commit():
-#         #     flash('Сет добавлен', category='success')
-#         # else:
-#         #     flash('Ошибка добавления', category='error')
-#         print(request.form['rest'])
-#     return render_template('test.html', title='Добавить сет', menu=menu, exercises=exercises)
-
-
-def test_request():
-    with app.test_request_context():
-        print(url_for('index'))
-        print(url_for('about'))
-        print(url_for('user', username='selfedu'))
 
 
 if __name__ == '__main__':

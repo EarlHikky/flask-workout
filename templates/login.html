@@ -3,18 +3,10 @@
 {% block content %}
  {{ super() }}
 
- <form action="/login" method="post" class="form-contact">
- <p>
+ <form action="/login" method="post" >
   <label>Имя: </label>
-  <input type="text" name="username" value="" requied />
- </p>
- <p>
-  <label>Пароль: </label>
-  <input type="password" name="psw" value="" requied />
- </p>
- <p>
+  <input type="text" name="username" value="" required/>
   <input type="submit" value="Войти" />
- </p>
  </form>
 
 {% endblock %}
