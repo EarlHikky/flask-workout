@@ -17,19 +17,27 @@ Before you begin, ensure you have the following requirements installed:
 
 1. Clone the repository:
 
-     git clone https://github.com/earlhikky/workout-tracker-app.git
+     ```shell
+     git clone https://github.com/EarlHikky/flask-workout
+     ```
    
 2. Change into the project directory:
 
+     ```shell
      cd workout-tracker-app
+     ```
    
 3. Install [Poetry](https://python-poetry.org/) if you haven't already:
 
+     ```shell
      pip install poetry
+     ```
    
 4. Install the required dependencies using Poetry:
 
+     ```shell
      poetry install
+     ```
    
    This will read the pyproject.toml file and install the necessary packages.
 
@@ -40,7 +48,9 @@ Before you begin, ensure you have the following requirements installed:
 
 6. Run the application:
 
+     ```shell
      poetry run python app.py
+     ```
    
 The application will be accessible at [http://localhost:5000/](http://localhost:5000/).
 
