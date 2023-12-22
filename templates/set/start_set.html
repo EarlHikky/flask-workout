@@ -5,19 +5,17 @@
 
  <div id="formContainer" style="display: block;">
    <form id="start-form" action="{{ url_for('add_set') }}" method="post" class="form-contact">
-     <p>
        <label>{{ exercise_title }}</label>
        <input type="hidden" name="exercise_id" value="{{ exercise_id }}">
        <input type="hidden" name="set_index" value="{{ current_set_index }}">
        <input type="hidden" name="workout_id" value="{{ current_workout_id }}">
-     </p>
-     <p><input id="hideFormButton" type="submit" value="Старт" /></p>
+       <input id="hideFormButton" type="submit" value="Старт" />
    </form>
  </div>
  <form action="{{ url_for('stop_set') }}" method="post" class="form-contact">
-   <p><label>Повторы: </label> <input type="text" name="reps" id="reps" value="{{ reps }}" /></p>
-   <p><label>Вес: </label> <input type="text" name="weight" id="weight" value="{{ weight }}" /></p>
-   <p>
+   <label>Повторы: </label> <input type="text" name="reps" id="reps" value="{{ reps }}" />
+   <label>Вес: </label> <input type="text" name="weight" id="weight" value="{{ weight }}" />
+   <label>Время: </label> <input type="text" name="duration" id="duration" value="{{ duration }}" />
      <label>Отдых: </label>
      <table>
        <tr>
@@ -59,6 +57,16 @@
    </p>
    <p><input type="submit" value="Стоп" /></p>
  </form>
+ <div id="timer-container">
+    <div id="timer">{{ rest }}</div>
+
+    <audio id="timerSound">
+        <source src="{{ url_for('static', filename='alarm.mp3') }}" type="audio/mp3">
+    </audio>
+    <button onclick="startTimer()">Старт</button>
+    <button onclick="stopTimer()">Стоп</button>
+</div>
+
  <form action="{{url_for('stop_workout')}}" method="post" class="form-contact">
    <input type="submit" value="Завершить тренировку">
  </form>
@@ -83,4 +91,45 @@
    });
  });
  </script>
+
+<script>
+        var timer;
+        var seconds = {{ rest }};
+
+        function startTimer() {
+            timer = setInterval(updateTimer, 1000);
+        }
+
+        function updateTimer() {
+            seconds--;
+
+            if (seconds <= 5) {
+                playTimerSound();  // Воспроизведение звука за 5 секунд до конца таймера
+            }
+
+            if (seconds <= 0) {
+                clearInterval(timer);
+            }
+
+            document.getElementById('timer').innerHTML = seconds;
+        }
+
+        function stopTimer() {
+            clearInterval(timer);
+        }
+
+function playTimerSound() {
+        var audio = document.getElementById('timerSound');
+
+        // Проверяем, поддерживает ли браузер воспроизведение звука
+        if (audio.canPlayType && audio.canPlayType('audio/mpeg;').replace(/no/, '')) {
+            audio.play();
+        } else {
+            alert("Ваш браузер не поддерживает воспроизведение звука.");
+        }
+    }
+
+
+
+    </script>
 {% endblock %}

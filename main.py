@@ -284,7 +284,7 @@ def start_set() -> Response | str:
 
 @app.route('/set/stop', methods=['POST'])
 @login_required
-def stop_set() -> str:
+def stop_set() -> Response:
     """
     Stop current set. Set new rest time for last set.
 
@@ -320,8 +320,8 @@ def stop_set() -> str:
         # response = make_response('Сет успешно остановлен')  # TODO
         # response.headers['Custom-Header'] = '123'
         # return response
-        # return redirect(request.referrer or '/workouts')
-        return render_template('timer.html', menu=menu, rest_time=rest_time)
+        return redirect(request.referrer or '/workouts')
+        # return render_template('timer.html', menu=menu, rest_time=rest_time)
 
 
 @app.route('/set/add', methods=['POST'])
