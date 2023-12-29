@@ -9,69 +9,102 @@
        <input type="hidden" name="exercise_id" value="{{ exercise_id }}">
        <input type="hidden" name="set_index" value="{{ current_set_index }}">
        <input type="hidden" name="workout_id" value="{{ current_workout_id }}">
+       <input type="hidden" name="old_rest" value="{{ rest }}">
        <input id="hideFormButton" type="submit" value="Старт" />
    </form>
  </div>
  <form action="{{ url_for('stop_set') }}" method="post" class="form-contact">
-   <label>Повторы: </label> <input type="text" name="reps" id="reps" value="{{ reps }}" />
-   <label>Вес: </label> <input type="text" name="weight" id="weight" value="{{ weight }}" />
-   <label>Время: </label> <input type="text" name="duration" id="duration" value="{{ duration }}" />
-     <label>Отдых: </label>
-     <table>
-       <tr>
-         <input type="text" name="old_rest" id="old_rest" value="{{ rest }}" />
-       </tr>
-       <tr>
-         <td>
-           <div class="radio-container">
-             <input type="radio" id="rest120" name="new_rest" value="120" {% if rest == '00:02:00' %}checked{% endif %}>
-             <label for="rest120">120 сек</label>
-           </div>
-         </td>
-         <td>
-           <div class="radio-container">
-             <input type="radio" id="rest90" name="new_rest" value="90" {% if rest == '00:01:30' %}checked{% endif %}>
-             <label for="rest90">90 сек</label>
-           </div>
-         </td>
-         <td>
-           <div class="radio-container">
-             <input type="radio" id="rest60" name="new_rest" value="60" {% if rest == '00:01:00' %}checked{% endif %}>
-             <label for="rest60">60 сек</label>
-           </div>
-         </td>
-         <td>
-           <div class="radio-container">
-             <input type="radio" id="rest30" name="new_rest" value="30" {% if rest == '00:00:30' %}checked{% endif %}>
-             <label for="rest30">30 сек</label>
-           </div>
-         </td>
-         <td>
-           <div class="radio-container">
-             <input type="radio" id="rest0" name="new_rest" value="30" {% if rest == '00:00:00' %}checked{% endif %}>
-             <label for="rest30">0 сек</label>
-           </div>
-         </td>
-       </tr>
-     </table>
-   </p>
-   <p><input type="submit" value="Стоп" /></p>
+   <label>Повторы: </label> <input type="number" name="reps" id="reps" value="{{ reps }}" />
+   <label>Вес: </label> <input type="number" name="weight" id="weight" value="{{ weight }}" />
+   <label>Время: </label> <input type="time" name="duration" id="duration" value="{{ duration }}" disabled/>
+   <input type="submit" value="Стоп" />
  </form>
  <div id="timer-container">
-    <div id="timer">{{ rest }}</div>
-
-    <audio id="timerSound">
-        <source src="{{ url_for('static', filename='alarm.mp3') }}" type="audio/mp3">
-    </audio>
-    <button onclick="startTimer()">Старт</button>
-    <button onclick="stopTimer()">Стоп</button>
-</div>
+   <label>Отдых: </label>
+ <div class="button-container">
+  <button class="small-circle-button" onclick="decrement()">-</button>
+  <input type="time" name="old_rest" id="old_rest" value="{{ rest }}" disabled/>
+  <button class="small-circle-button" onclick="increment()">+</button>
+ </div>
+ <button id="stopButton" onclick="stopRest()">Стоп</button>
+ <audio id="timerSound">
+   <source src="{{ url_for('static', filename='alarm.mp3') }}" type="audio/mp3">
+ </audio>
+ <button id="startButton" onclick="startRest()">Старт</button>
+ </div>
 
  <form action="{{url_for('stop_workout')}}" method="post" class="form-contact">
    <input type="submit" value="Завершить тренировку">
  </form>
 
- <script>
+
+<script>
+let intervalId;
+let restTime = {{ seconds }};
+let durationTime = 0;
+
+function startTimer() {
+ timerIntervalId = setInterval(() => {
+   durationTime++;
+   console.log(durationTime);
+   document.getElementById('duration').value = formatTime(durationTime);
+ }, 1000);
+}
+
+function startRest() {
+ restIntervalId = setInterval(() => {
+   restTime--;
+   document.getElementById('old_rest').value = formatTime(restTime);
+   document.getElementById('startButton').style.display = 'none';
+   document.getElementById('stopButton').style.display = 'inline-block';
+   if (restTime <= 0) {
+     clearInterval(restIntervalId);
+     alert("Время отдыха закончилось.");
+   }
+ }, 1000);
+}
+
+function stopRest() {
+ document.getElementById('stopButton').style.display = 'none';
+ document.getElementById('startButton').style.display = 'inline-block';
+ clearInterval(restIntervalId);
+ restTime = {{ seconds }};
+ document.getElementById('old_rest').value = formatTime(restTime);
+}
+
+function increment() {
+  restTime += 5;
+
+  document.getElementById('old_rest').value = formatTime(restTime);
+}
+
+function decrement() {
+  if (restTime > 0) {
+      restTime -= 5;
+
+      document.getElementById('old_rest').value = formatTime(restTime);
+  }
+}
+
+function formatTime(seconds) {
+   const date = new Date(null);
+   date.setSeconds(seconds);
+   return date.toISOString().substr(14, 5);
+}
+
+
+function stop() {
+  clearInterval(intervalId);
+}
+
+function reset() {
+  clearInterval(intervalId);
+  time = 0;
+  document.getElementById('timer').innerText = time;
+}
+
+
+
  const hideButton = document.querySelector('#hideFormButton');
  const showButton = document.querySelector('#showFormButton');
  const formContainer = document.querySelector('#formContainer');
@@ -88,48 +121,10 @@
    }).then(response => {
      // Скрытие формы
      formContainer.style.display = 'none';
+
+     startTimer();
    });
  });
  </script>
 
-<script>
-        var timer;
-        var seconds = {{ rest }};
-
-        function startTimer() {
-            timer = setInterval(updateTimer, 1000);
-        }
-
-        function updateTimer() {
-            seconds--;
-
-            if (seconds <= 5) {
-                playTimerSound();  // Воспроизведение звука за 5 секунд до конца таймера
-            }
-
-            if (seconds <= 0) {
-                clearInterval(timer);
-            }
-
-            document.getElementById('timer').innerHTML = seconds;
-        }
-
-        function stopTimer() {
-            clearInterval(timer);
-        }
-
-function playTimerSound() {
-        var audio = document.getElementById('timerSound');
-
-        // Проверяем, поддерживает ли браузер воспроизведение звука
-        if (audio.canPlayType && audio.canPlayType('audio/mpeg;').replace(/no/, '')) {
-            audio.play();
-        } else {
-            alert("Ваш браузер не поддерживает воспроизведение звука.");
-        }
-    }
-
-
-
-    </script>
 {% endblock %}

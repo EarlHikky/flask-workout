@@ -89,12 +89,6 @@ def logout() -> Response:
     return redirect(url_for('login'))
 
 
-@app.route('/profile')  # TODO
-@login_required
-def profile() -> str:
-    return f'ID пользователя {current_user.id}'
-
-
 def is_new_workout() -> Workout | None:
     """
     Check if there is a new workout.
@@ -152,6 +146,12 @@ def get_context(workout: Workout) -> dict:
 @login_required
 def index() -> Response:
     return redirect(url_for('add_workout'))
+
+
+@app.route('/profile')  # TODO
+@login_required
+def profile() -> str:
+    return f'ID пользователя {current_user.id}'
 
 
 # @app.route('/profile/<int:username>/<path>')
@@ -266,12 +266,14 @@ def start_set() -> Response | str:
             context['exercise_id'] = last_workout_sets[current_set_index].exercise.id
             context['weight'] = last_workout_sets[current_set_index].weight
             context['reps'] = last_workout_sets[current_set_index].reps
-            context['duration'] = last_workout_sets[current_set_index].duration
-            rest = last_workout_sets[current_set_index].rest
-            seconds = rest.hour * 3600 + rest.minute * 60 + rest.second
-            context['rest'] = seconds
-            # context['rest'] = last_workout_sets[current_set_index].rest
-            ic(context['rest'])  # TODO
+            context['duration'] = last_workout_sets[current_set_index].duration.strftime('%M:%S')
+            if current_set_index == 0:
+                previous_set_rest = last_workout_sets[current_set_index].rest
+            else:
+                previous_set_rest = last_workout_sets[current_set_index - 1].rest
+            seconds = previous_set_rest.hour * 3600 + previous_set_rest.minute * 60 + previous_set_rest.second
+            context['rest'] = previous_set_rest.strftime('%M:%S')
+            context['seconds'] = seconds
 
         else:
             flash('Конец тренировки', category='success')
@@ -301,14 +303,14 @@ def stop_set() -> Response:
             last_set = current_workout.sets[-2] if current_workout.sets else None
             last_set.rest = current_set.start - last_set.stop
             db.session.commit()
-        rest_time = 0
+
         if 'new_rest' in request.form:
             current_set.rest = datetime.timedelta(seconds=int(request.form['new_rest']))
-            rest_time = int(request.form['new_rest'])
-        else:
+        elif 'old_rest' in request.form:
             current_set.rest = datetime.timedelta(seconds=int(request.form['old_rest']))
-            rest_time = int(request.form['old_rest'])
-            # current_set.rest = request.form['old_rest']
+        else:
+            current_set.rest = datetime.timedelta(seconds=0)
+
         current_set.duration = current_set.stop - current_set.start
         current_set.reps = request.form['reps'] if request.form['reps'] else 0
         current_set.weight = request.form['weight'] if request.form['weight'] else 0
@@ -316,12 +318,7 @@ def stop_set() -> Response:
         if db.session.commit():
             flash('Ошибка добавления', category='error')
         flash('Завершение сета', category='success')
-        # time.sleep(sl_time)
-        # response = make_response('Сет успешно остановлен')  # TODO
-        # response.headers['Custom-Header'] = '123'
-        # return response
         return redirect(request.referrer or '/workouts')
-        # return render_template('timer.html', menu=menu, rest_time=rest_time)
 
 
 @app.route('/set/add', methods=['POST'])
