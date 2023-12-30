@@ -213,8 +213,10 @@ def start_new_set() -> Response | str:
     context['rest'] = last_set_rest
     context['set_index'] = current_set_index
     for item in menu:
-        if item['name'] == 'Добавить сет':
+        if item['name'] == 'Старт':
+            item['name'] = 'Продолжить'
             item['url'] = 'start_new_set'
+    ic(menu)
     return render_template('set/start_new_set.html', **context)
 
 
@@ -256,7 +258,8 @@ def start_set() -> Response | str:
             current_set_index = 0
 
         for item in menu:
-            if item['name'] == 'Добавить сет':
+            if item['name'] == 'Старт':
+                item['name'] = 'Продолжить'
                 item['url'] = 'start_set'
 
         if not current_set_index == last_workout_sets[-1].index:
@@ -522,10 +525,17 @@ def stop_workout() -> Response | str:
     current_workout.stop = datetime.datetime.now().replace(microsecond=0)
     current_workout.duration = current_workout.stop - current_workout.date
     if not db.session.commit():
+        for item in menu:
+            if item['name'] == 'Продолжить':
+                item['name'] = 'Старт'
+                item['url'] = 'start_new_set'
         flash('Завершение тренировки', category='success')
         return redirect(url_for('show_workouts'))
     else:
         flash('Ошибка добавления', category='error')
+
+
+
 
 
 @app.route('/workout/list')

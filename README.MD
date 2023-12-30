@@ -68,7 +68,7 @@ The application will be accessible at [http://localhost:5000/](http://localhost:
 
 ### Adding a Workout Set
 
-1. Start a new set or continue from the last set by navigating to [http://localhost:5000/set/start](http://localhost:5000/set/start).
+1. Start a new set or Продолжить from the last set by navigating to [http://localhost:5000/set/start](http://localhost:5000/set/start).
 2. Fill in the set details and submit the form.
 
 ### Viewing Workout History
