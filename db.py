@@ -6,11 +6,12 @@ from sqlalchemy import create_engine, MetaData, Table, Column, Integer, Float, S
 from sqlalchemy.orm import relationship
 
 # Подключение к серверу PostgreSQL на localhost с помощью psycopg2 DBAPI
-engine = create_engine('postgresql+psycopg2://postgres@localhost/workouts')
-engine.connect()
-
+# engine = create_engine('postgresql+psycopg2://postgres@localhost/workouts')
+engine = create_engine('sqlite:////home/earl/PycharmProjects/flask-workout/database.db')
 Base = declarative_base()
-
+# Создание таблицы (если ее нет)
+Base.metadata.create_all(engine)
+engine.connect()
 
 
 class User(Base):
@@ -23,9 +24,7 @@ class WorkoutType(Base):
     __tablename__ = 'workout_types'
     id = Column(Integer, primary_key=True)
     type = Column(String(25), unique=True)
-
-    def __repr__(self):
-        return self.type
+    user_id = Column(Integer, ForeignKey('users.id'))
 
 
 class Exercise(Base):
@@ -33,8 +32,8 @@ class Exercise(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'))
     title = Column(String(100), nullable=False)
-    workout_type_id = Column(String(25), ForeignKey('workout_types.id'))
-    type = relationship('WorkoutType')
+    workout_type_id = Column(String(25), ForeignKey('workout_types.id', ondelete='CASCADE'))
+    type = relationship('WorkoutType', backref='exercises')
 
 
 class Workout(Base):

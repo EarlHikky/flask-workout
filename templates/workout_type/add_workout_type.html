@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  {{ super() }}
+
+  <form action="{{url_for('add_workout_type')}}" method="post" class="form-contact">
+    <label>Тип: </label> <input type="text" name="title" value="" required />
+    <input type="submit" value="Добавить" />
+  </form>
+
+{% endblock %}

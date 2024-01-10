@@ -3,18 +3,25 @@
 {% block content %}
   {{ super() }}
   <div class="exercise-list">
-     <a href="{{ url_for('add_exercise') }}" class="exercise-link">
-    <button type="button" class="btn btn-success">Добавить упражнение</button>
-     </a>
+    <a href="{{ url_for('add_exercise') }}" class="exercise-link">
+      <button type="button" class="btn btn-success">Добавить упражнение</button>
+    </a>
+    <a href="{{ url_for('add_workout_type') }}" class="exercise-link">
+      <button type="button" class="btn btn-success">Добавить тип</button>
+    </a>
     <table>
       <tr>
-        <th>Тип</th>
-        <th>Упражнение</th>
+       <th>Тип</th>
+       <th>Упражнение</th>
       </tr>
       {% set grouped_exercises = exercises|groupby('type.type') %}
       {% for type, exercises_in_type in grouped_exercises %}
         <tr>
-          <td rowspan="{{ exercises_in_type|length }}">{{ type }}</td>
+          <td rowspan="{{ exercises_in_type|length }}">
+            <a href="{{ url_for('update_workout_type', workout_type_id=exercises_in_type[0].type.id) }}" class="exercise-link">
+             {{ type }}
+            </a>
+           </td>
           {% set firstExercise = exercises_in_type[0] %}
           <td>
             <a href="{{ url_for('update_exercise', exercise_id=firstExercise.id) }}" class="exercise-link">

@@ -1,5 +1,6 @@
 import datetime
 import time
+
 from itertools import groupby
 from typing import Tuple
 
@@ -17,10 +18,11 @@ from user import UserLogin
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'fdgdfgdfggf786hfg6hfg6h7f'
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////home/earl/PycharmProjects/flask-workout/database.db'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql+psycopg2://postgres@localhost/workouts'
 # app.config['SQLALCHEMY_ECHO'] = True
 # app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
+# engine = create_engine('sqlite:////home/earl/PycharmProjects/flask-workout/database.db')
 db = SQLAlchemy(app)
 # db.init_app(app)
 # db.create_all()
@@ -200,23 +202,22 @@ def start_new_set() -> Response | str:
 
     context = get_context(current_workout)
     current_set_index = 1
-    last_set_rest = '00:01:30'
     last_set_exercise_title = ''
     if len(current_workout.sets) > 0:
         last_set = db.session.query(Set).order_by(desc(Set.id)).first()
         if last_set:
             last_set_exercise_title = last_set.exercise.title
             last_set_index = last_set.index
-            last_set_rest = last_set.rest
             current_set_index = last_set_index + 1
     context['last_set_exercise_title'] = last_set_exercise_title
-    context['rest'] = last_set_rest
     context['set_index'] = current_set_index
+    context['rest'] = '01:30'
+    context['seconds'] = 0
+    context['duration'] = 0
     for item in menu:
         if item['name'] == 'Старт':
-            item['name'] = 'Продолжить'
+            item['name'] = 'Прод..'
             item['url'] = 'start_new_set'
-    ic(menu)
     return render_template('set/start_new_set.html', **context)
 
 
@@ -259,7 +260,7 @@ def start_set() -> Response | str:
 
         for item in menu:
             if item['name'] == 'Старт':
-                item['name'] = 'Продолжить'
+                item['name'] = 'Прод..'
                 item['url'] = 'start_set'
 
         if not current_set_index == last_workout_sets[-1].index:
@@ -305,18 +306,11 @@ def stop_set() -> Response:
             current_workout_sets.sort(key=lambda x: x.index)
             last_set = current_workout.sets[-2] if current_workout.sets else None
             last_set.rest = current_set.start - last_set.stop
-            db.session.commit()
-
-        if 'new_rest' in request.form:
-            current_set.rest = datetime.timedelta(seconds=int(request.form['new_rest']))
-        elif 'old_rest' in request.form:
-            current_set.rest = datetime.timedelta(seconds=int(request.form['old_rest']))
-        else:
-            current_set.rest = datetime.timedelta(seconds=0)
 
         current_set.duration = current_set.stop - current_set.start
         current_set.reps = request.form['reps'] if request.form['reps'] else 0
         current_set.weight = request.form['weight'] if request.form['weight'] else 0
+        current_set.rest = datetime.timedelta(seconds=0)
 
         if db.session.commit():
             flash('Ошибка добавления', category='error')
@@ -395,19 +389,20 @@ def delete_set(set_id: int) -> Response | str:
 
 @app.route('/exercise/add', methods=['POST', 'GET'])
 @login_required
-def add_exercise() -> str:
+def add_exercise() -> Response | str:
     """
     Add new exercise.
 
     :return: Rendered template for adding new exercise.
     """
-    types = db.session.execute(db.select(WorkoutType).order_by(WorkoutType.type)).scalars()
+    user_id = current_user.id
+    types = db.session.execute(db.select(WorkoutType).filter(WorkoutType.user_id == user_id).order_by(WorkoutType.type)).scalars()
     if request.method == 'POST':
-        user_id = current_user.id
         exercise = Exercise(user_id=user_id, title=request.form['title'], workout_type_id=request.form['type'])
         db.session.add(exercise)
         if not db.session.commit():
             flash('Упражнение добавлено', category='success')
+            return redirect(url_for('show_exercises'))
         else:
             flash('Ошибка добавления', category='error')
     return render_template('exercise/add_exercise.html', title='Добавить упражнение', menu=menu, types=types)
@@ -467,6 +462,63 @@ def delete_exercise(exercise_id: int) -> Response | str:
     return redirect(url_for('show_exercises'))
 
 
+@app.route('/workout/type/add', methods=['GET', 'POST'])
+@login_required
+def add_workout_type() -> Response | str:
+    """
+    Add new workout type.
+
+    :return: Rendered template for adding new workout type.
+    """
+    if request.method == 'POST':
+        user_id = current_user.id
+        workout_type = WorkoutType(type=request.form['title'], user_id=user_id)
+        db.session.add(workout_type)
+        if not db.session.commit():
+            flash('Тип добавлен', category='success')
+            return redirect(url_for('add_exercise'))
+        else:
+            flash('Ошибка добавления', category='error')
+    return render_template('workout_type/add_workout_type.html', title='Добавить тип', menu=menu)
+
+
+@app.route('/workout/type/<int:workout_type_id>/update', methods=['GET', 'POST'])
+@login_required
+def update_workout_type(workout_type_id: int) -> Response | str:
+    """
+    Update workout type.
+
+    :param workout_type_id:
+    :return: Redirect to the list of exercises or HTML template with the updated exercise.
+    """
+    workout_type = db.get_or_404(WorkoutType, workout_type_id)
+    if request.method == 'POST':
+        workout_type.type = request.form['title']
+        db.session.commit()
+        return redirect(url_for('show_exercises'))
+    else:
+        return render_template('workout_type/update_workout_type.html', workout_type=workout_type, menu=menu)
+
+
+@app.route('/workout/type/<int:workout_type_id>/delete', methods=['POST'])
+@login_required
+def delete_workout_type(workout_type_id: int) -> Response | str:
+    """
+    Delete workout type.
+
+    :param workout_type_id:
+    :return: Redirect to the list of exercises.
+    """
+    workout_type = db.get_or_404(WorkoutType, workout_type_id)
+    db.session.query(Exercise).filter(Exercise.workout_type_id == workout_type_id).delete()
+    db.session.delete(workout_type)
+    if not db.session.commit():
+        flash('Тип удалён', category='success')
+    else:
+        flash('Ошибка удаления', category='error')
+    return redirect(url_for('show_exercises'))
+
+
 @app.route('/workout/add', methods=['POST', 'GET'])
 @login_required
 def add_workout() -> Response | str:
@@ -475,7 +527,12 @@ def add_workout() -> Response | str:
 
     :return: Redirect to the start of the new set for the new workout or HTML page displaying the new workout.
     """
-    types = db.session.execute(db.select(WorkoutType).order_by(WorkoutType.type)).scalars()
+    user_id = current_user.id
+    types = [wt[0] for wt in db.session.execute(db.select(WorkoutType).filter(WorkoutType.user_id == user_id).order_by(WorkoutType.type)).all()]
+
+    if not types:
+        return redirect(url_for('add_workout_type'))
+
     if request.method == 'POST':
         user_id = current_user.id
         workout = Workout(user_id=user_id, workout_type_id=request.form['type'])
@@ -526,16 +583,13 @@ def stop_workout() -> Response | str:
     current_workout.duration = current_workout.stop - current_workout.date
     if not db.session.commit():
         for item in menu:
-            if item['name'] == 'Продолжить':
+            if item['name'] == 'Прод..':
                 item['name'] = 'Старт'
                 item['url'] = 'start_new_set'
         flash('Завершение тренировки', category='success')
         return redirect(url_for('show_workouts'))
     else:
         flash('Ошибка добавления', category='error')
-
-
-
 
 
 @app.route('/workout/list')

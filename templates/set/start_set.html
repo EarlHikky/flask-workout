@@ -5,62 +5,92 @@
 
  <div id="formContainer" style="display: block;">
    <form id="start-form" action="{{ url_for('add_set') }}" method="post" class="form-contact">
-       <label>{{ exercise_title }}</label>
-       <input type="hidden" name="exercise_id" value="{{ exercise_id }}">
-       <input type="hidden" name="set_index" value="{{ current_set_index }}">
-       <input type="hidden" name="workout_id" value="{{ current_workout_id }}">
-       <input type="hidden" name="old_rest" value="{{ rest }}">
-       <input id="hideFormButton" type="submit" value="Старт" />
+     <label>{{ exercise_title }}</label>
+     <input type="hidden" name="exercise_id" value="{{ exercise_id }}">
+     <input type="hidden" name="set_index" value="{{ current_set_index }}">
+     <input type="hidden" name="workout_id" value="{{ current_workout_id }}">
+     <input type="hidden" name="rest" value="{{ rest }}">
+     <input id="hideFormButton" type="submit" value="Старт" />
    </form>
  </div>
+
  <form action="{{ url_for('stop_set') }}" method="post" class="form-contact">
    <label>Повторы: </label> <input type="number" name="reps" id="reps" value="{{ reps }}" />
-   <label>Вес: </label> <input type="number" name="weight" id="weight" value="{{ weight }}" />
+   <label>Вес: </label> <input type="text" name="weight" id="weight" value="{{ weight }}" />
    <label>Время: </label> <input type="time" name="duration" id="duration" value="{{ duration }}" disabled/>
    <input type="submit" value="Стоп" />
  </form>
+
  <div id="timer-container">
    <label>Отдых: </label>
- <div class="button-container">
-  <button class="small-circle-button" onclick="decrement()">-</button>
-  <input type="time" name="old_rest" id="old_rest" value="{{ rest }}" disabled/>
-  <button class="small-circle-button" onclick="increment()">+</button>
- </div>
- <button id="stopButton" onclick="stopRest()">Стоп</button>
- <audio id="timerSound">
-   <source src="{{ url_for('static', filename='alarm.mp3') }}" type="audio/mp3">
- </audio>
- <button id="startButton" onclick="startRest()">Старт</button>
+   <div class="button-container">
+     <button class="small-circle-button" onclick="decrement()">-</button>
+     <input type="time" name="rest" id="rest" value="{{ rest }}"/>
+     <button class="small-circle-button" onclick="increment()">+</button>
+  </div>
+  <button id="stopButton" onclick="stopRest()">Стоп</button>
+  <button id="startButton" onclick="startRest()">Старт</button>
  </div>
 
  <form action="{{url_for('stop_workout')}}" method="post" class="form-contact">
    <input type="submit" value="Завершить тренировку">
  </form>
 
-
 <script>
 let intervalId;
 let restTime = {{ seconds }};
 let durationTime = 0;
+let audioContext = new (window.AudioContext || window.webkitAudioContext)();
+let soundBuffer;
+let currentSource; // Объявляем currentSource вне функции playSound
+
+fetch("{{ url_for('static', filename='alarm.mp3') }}")
+ .then(response => response.arrayBuffer())
+ .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
+ .then(decodedAudioData => {
+   soundBuffer = decodedAudioData;
+ });
+
+function playSound() {
+ // Если текущий источник звука уже был создан, остановите его перед воспроизведением нового звука
+ if (currentSource) {
+ currentSource.stop();
+ }
+
+ let source = audioContext.createBufferSource();
+ source.buffer = soundBuffer;
+ source.connect(audioContext.destination);
+ source.start(0);
+
+ currentSource = source; // Сохраняем ссылку на текущий источник
+}
+
+function stopSound() {
+ if (currentSource) {
+   currentSource.stop(); // Останавливаем текущий источник
+   currentSource = null; // Сбрасываем ссылку на источник
+ }
+}
 
 function startTimer() {
  timerIntervalId = setInterval(() => {
    durationTime++;
-   console.log(durationTime);
    document.getElementById('duration').value = formatTime(durationTime);
  }, 1000);
 }
 
 function startRest() {
  restIntervalId = setInterval(() => {
-   restTime--;
-   document.getElementById('old_rest').value = formatTime(restTime);
-   document.getElementById('startButton').style.display = 'none';
-   document.getElementById('stopButton').style.display = 'inline-block';
-   if (restTime <= 0) {
-     clearInterval(restIntervalId);
-     alert("Время отдыха закончилось.");
-   }
+  restTime--;
+  document.getElementById('rest').value = formatTime(restTime);
+  document.getElementById('startButton').style.display = 'none';
+  document.getElementById('stopButton').style.display = 'inline-block';
+  if (restTime <= 0) {
+    stopRest()
+    alert("Время закончилось.");
+  } else if (restTime === 8) {
+    playSound();
+  }
  }, 1000);
 }
 
@@ -69,20 +99,23 @@ function stopRest() {
  document.getElementById('startButton').style.display = 'inline-block';
  clearInterval(restIntervalId);
  restTime = {{ seconds }};
- document.getElementById('old_rest').value = formatTime(restTime);
+ document.getElementById('rest').value = formatTime(restTime);
+ stopSound()
 }
+
+document.getElementById('rest').addEventListener('change', function() {
+ restTime = parseInt(this.value.split(':')[0]) * 60 + parseInt(this.value.split(':')[1]);
+});
 
 function increment() {
   restTime += 5;
-
-  document.getElementById('old_rest').value = formatTime(restTime);
+  document.getElementById('rest').value = formatTime(restTime);
 }
 
 function decrement() {
   if (restTime > 0) {
       restTime -= 5;
-
-      document.getElementById('old_rest').value = formatTime(restTime);
+      document.getElementById('rest').value = formatTime(restTime);
   }
 }
 
@@ -92,39 +125,26 @@ function formatTime(seconds) {
    return date.toISOString().substr(14, 5);
 }
 
+const hideButton = document.querySelector('#hideFormButton');
+const showButton = document.querySelector('#showFormButton');
+const formContainer = document.querySelector('#formContainer');
 
-function stop() {
-  clearInterval(intervalId);
-}
-
-function reset() {
-  clearInterval(intervalId);
-  time = 0;
-  document.getElementById('timer').innerText = time;
-}
-
-
-
- const hideButton = document.querySelector('#hideFormButton');
- const showButton = document.querySelector('#showFormButton');
- const formContainer = document.querySelector('#formContainer');
-
- hideButton.addEventListener('click', (event) => {
-   event.preventDefault();
+hideButton.addEventListener('click', (event) => {
+  event.preventDefault();
 
    // Отправка формы
-   const form = document.querySelector('#formContainer form');
-   const formData = new FormData(form);
-   fetch(form.action, {
-     method: form.method,
-     body: formData
-   }).then(response => {
-     // Скрытие формы
-     formContainer.style.display = 'none';
+  const form = document.querySelector('#formContainer form');
+  const formData = new FormData(form);
+  fetch(form.action, {
+    method: form.method,
+    body: formData
+  }).then(response => {
+    // Скрытие формы
+   formContainer.style.display = 'none';
 
-     startTimer();
-   });
- });
- </script>
+   startTimer();
+  });
+});
+</script>
 
 {% endblock %}
