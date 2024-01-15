@@ -10,6 +10,12 @@
          <option value="{{ type.id }}">{{ type.type }}</option>
        {% endfor %}
      </select>
+     <label>Цель:</label>
+     <select name="target" id="target">
+       {% for target in targets %}
+         <option value="{{ target.id }}">{{ target.title }}</option>
+       {% endfor %}
+     </select>
    <input type="submit" name="action" value="Продолжить тренировку"/>
    <input type="submit" name="action" value="Создать новую тренировку"/>
  </form>

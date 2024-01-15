@@ -3,13 +3,20 @@
 {% block content %}
   {{ super() }}
   <form action="{{url_for('add_exercise')}}" method="post" class="form-contact">
-    <p><label>Упражнение: </label> <input type="text" name="title" value="" required />
-  <p><label>Тип:</label> <select name="type" id="type">
-    {% for type in types %}
-              <option value="{{ type.id }}">{{ type.type }}</option>
-          {% endfor %}
-      </select></p>
-    <p><input type="submit" value="Добавить" />
+    <label>Упражнение: </label> <input type="text" name="title" value="" required />
+    <label>Тип:</label>
+    <select name="type" id="type">
+      {% for type in types %}
+        <option value="{{ type.id }}">{{ type.type }}</option>
+      {% endfor %}
+    </select>
+    <label>Цель:</label>
+    <select name="target" id="target">
+      {% for target in targets %}
+        <option value="{{ target.id }}">{{ target.title }}</option>
+      {% endfor %}
+    </select>
+    <input type="submit" value="Добавить" />
 
   </form>
 {% endblock %}

@@ -40,16 +40,9 @@
 let intervalId;
 let restTime = {{ seconds }};
 let durationTime = 0;
-let audioContext = new (window.AudioContext || window.webkitAudioContext)();
-let soundBuffer;
-let currentSource; // Объявляем currentSource вне функции playSound
 
-fetch("{{ url_for('static', filename='alarm.mp3') }}")
- .then(response => response.arrayBuffer())
- .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
- .then(decodedAudioData => {
-   soundBuffer = decodedAudioData;
- });
+
+
 
 function playSound() {
  // Если текущий источник звука уже был создан, остановите его перед воспроизведением нового звука
@@ -66,11 +59,13 @@ function playSound() {
 }
 
 function stopSound() {
+
  if (currentSource) {
    currentSource.stop(); // Останавливаем текущий источник
    currentSource = null; // Сбрасываем ссылку на источник
  }
 }
+
 
 function startTimer() {
  timerIntervalId = setInterval(() => {
@@ -80,19 +75,52 @@ function startTimer() {
 }
 
 function startRest() {
- restIntervalId = setInterval(() => {
-  restTime--;
-  document.getElementById('rest').value = formatTime(restTime);
-  document.getElementById('startButton').style.display = 'none';
-  document.getElementById('stopButton').style.display = 'inline-block';
-  if (restTime <= 0) {
-    stopRest()
-    alert("Время закончилось.");
-  } else if (restTime === 8) {
-    playSound();
+  // Create a new AudioContext instance
+  let audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+  // Define variables for soundBuffer and currentSource
+  let soundBuffer;
+  let currentSource; // currentSource declared outside playSound for wider scope
+
+  // Fetch the audio file and decode it
+  fetch("{{ url_for('static', filename='alarm.mp3') }}")
+    .then(response => response.arrayBuffer())
+    .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
+    .then(decodedAudioData => {
+      soundBuffer = decodedAudioData;
+    })
+    .catch(error => {
+      console.error('Error decoding audio data:', error);
+    });
+
+  // Function to play the sound
+  function playSound() {
+    if (soundBuffer) {
+      currentSource = audioContext.createBufferSource();
+      currentSource.buffer = soundBuffer;
+      currentSource.connect(audioContext.destination);
+      currentSource.start();
+    } else {
+      console.error('Sound buffer is not loaded');
+    }
   }
- }, 1000);
+
+  // Start the rest interval timer
+  restIntervalId = setInterval(() => {
+    restTime--;
+    document.getElementById('rest').value = formatTime(restTime);
+    document.getElementById('startButton').style.display = 'none';
+    document.getElementById('stopButton').style.display = 'inline-block';
+
+    if (restTime <= 0) {
+      stopRest();
+      alert("Время закончилось.");
+    } else if (restTime === 8) {
+      playSound();
+    }
+  }, 1000);
 }
+
 
 function stopRest() {
  document.getElementById('stopButton').style.display = 'none';
@@ -101,6 +129,7 @@ function stopRest() {
  restTime = {{ seconds }};
  document.getElementById('rest').value = formatTime(restTime);
  stopSound()
+
 }
 
 document.getElementById('rest').addEventListener('change', function() {

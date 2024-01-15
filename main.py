@@ -13,7 +13,7 @@ from sqlalchemy.orm import joinedload
 from icecream import ic
 from werkzeug import Response
 
-from db import User, Exercise, Workout, Set, WorkoutType
+from db import User, Exercise, Workout, Set, WorkoutType, Target
 from user import UserLogin
 
 app = Flask(__name__)
@@ -123,6 +123,12 @@ def get_context(workout: Workout) -> dict:
             .all()
         )
         cache.set('exercises', exercises, timeout=60 * 60)
+
+    for item in menu:
+        if item['name'] == 'Старт':
+            item['name'] = 'Прод..'
+            item['url'] = 'start_new_set'
+
     context = {
         'menu': menu,
         'exercises': exercises,
@@ -211,14 +217,52 @@ def start_new_set() -> Response | str:
             current_set_index = last_set_index + 1
     context['last_set_exercise_title'] = last_set_exercise_title
     context['set_index'] = current_set_index
+    ic(current_set_index)
     context['rest'] = '01:30'
     context['seconds'] = 0
     context['duration'] = 0
-    for item in menu:
-        if item['name'] == 'Старт':
-            item['name'] = 'Прод..'
-            item['url'] = 'start_new_set'
+
     return render_template('set/start_new_set.html', **context)
+
+
+def is_increasing(lst: list) -> bool:
+    """
+    Проверяет список на возрастание
+    :param lst:
+    :return:
+    """
+    if lst[-1] == lst[-2]:
+        return True
+    return all(i < j for i, j in zip(lst, lst[1:]))
+
+
+def growth_rate(lst: list) -> float:
+    """
+    Рассчитывает коэффициент прогресса
+    :param lst:
+    :return:
+    """
+    return (lst[-1] - lst[0]) / (len(lst) - 1)
+
+
+def convert_dt_to_seconds(rest: datetime) -> int:
+    """
+    Convert datetime to seconds
+    :param rest:
+    :return:
+    """
+    return rest.hour * 3600 + rest.minute * 60 + rest.second
+
+
+def convert_seconds_to_str(seconds: int) -> str:
+    """
+    Convert seconds to string
+    :param seconds:
+    :return:
+    """
+    tdelta = datetime.timedelta(seconds=seconds)
+    parts = str(tdelta).split(':')
+    return '{}:{}'.format(parts[1], parts[2])
 
 
 @app.route('/set/start', methods=['GET'])
@@ -234,7 +278,7 @@ def start_set() -> Response | str:
 
     context = get_context(current_workout)
 
-    current_workout_id = current_workout.id
+    # current_workout_id = current_workout.id
     current_workout_type_id = current_workout.workout_type_id
     current_workout_sets = current_workout.sets
     current_workout_sets.sort(key=lambda x: x.index)
@@ -243,10 +287,46 @@ def start_set() -> Response | str:
 
     last_workouts = db.session.query(Workout).options(joinedload(Workout.sets).joinedload(Set.exercise)).filter(
         Workout.user_id == user_id).filter(
-        Workout.workout_type_id == current_workout_type_id).order_by(desc(Workout.date)).limit(2).all()
+        Workout.workout_type_id == current_workout_type_id).order_by(desc(Workout.date)).limit(4).all()
+
+    # form = {'target': 'power'}
+    # if len(last_workouts) > 2:
+    # if len(last_workouts) > 1:
+
+    # if len(last_workouts) > 3:
+    # workouts = last_workouts[1:]
+    # workouts.sort(key=lambda x: x.date)
+    #
+    # target = form['target']
+    # if target == 'power':
+    #     sets = [workout.sets for workout in workouts if workout.sets]
+    #
+    #     current_set_index = 0
+    #     weights = [s.weight for set_ in sets for s in set_ if s.index == current_set_index + 1]
+    #
+    #     ic(weights)
+    #
+    #     last_weight = weights[-1]
+    #     if is_increasing(weights):
+    #         current_weight = round(last_weight + growth_rate(weights), 1)
+    #         context['weight'] = current_weight
+    # elif target == 'reps':
+    #     reps = [20, 21, 25]
+    #     last_rep = reps[-1]
+    #     if is_increasing(reps):
+    #         current_reps = round(last_rep + growth_rate(reps))
+    # elif target == 'endurance':
+    #     durations = [40, 41, 45]
+    #     rests = [90, 89, 85]
+    #     last_duration = durations[-1]
+    #     last_rest = rests[-1]
+    #     if is_increasing(durations):
+    #         current_duration = round(last_duration + growth_rate(durations))
+    #     if not is_increasing(rests):
+    #         current_rest = round(last_rest + growth_rate(rests))
 
     if len(last_workouts) > 1:
-        last_workout = last_workouts[-1]
+        last_workout = last_workouts[1]
         last_workout_sets = cache.get('last_workout_sets')
         if not last_workout_sets:
             last_workout_sets = last_workout.sets
@@ -258,13 +338,8 @@ def start_set() -> Response | str:
         else:
             current_set_index = 0
 
-        for item in menu:
-            if item['name'] == 'Старт':
-                item['name'] = 'Прод..'
-                item['url'] = 'start_set'
-
         if not current_set_index == last_workout_sets[-1].index:
-            context['current_workout_id'] = current_workout_id
+            # context['current_workout_id'] = current_workout_id
             context['current_set_index'] = current_set_index + 1
             context['exercise_title'] = last_workout_sets[current_set_index].exercise.title
             context['exercise_id'] = last_workout_sets[current_set_index].exercise.id
@@ -275,15 +350,46 @@ def start_set() -> Response | str:
                 previous_set_rest = last_workout_sets[current_set_index].rest
             else:
                 previous_set_rest = last_workout_sets[current_set_index - 1].rest
-            seconds = previous_set_rest.hour * 3600 + previous_set_rest.minute * 60 + previous_set_rest.second
+            seconds = convert_dt_to_seconds(previous_set_rest)
             context['rest'] = previous_set_rest.strftime('%M:%S')
             context['seconds'] = seconds
 
+            if len(last_workouts) > 3:
+                workouts = last_workouts[1:]
+                workouts.sort(key=lambda x: x.date)
+                sets = [workout.sets for workout in workouts if workout.sets]
+                target = current_workout.target_id
+
+                if target == 1:  # TODO
+                    weights = [s.weight for set_ in sets for s in set_ if s.index == current_set_index + 1]
+                    last_weight = weights[-1]
+                    if is_increasing(weights):
+                        current_weight = round(last_weight + growth_rate(weights), 1)
+                        context['weight'] = current_weight
+                elif target == 2:
+                    reps = [s.reps for set_ in sets for s in set_ if s.index == current_set_index + 1]
+                    last_rep = reps[-1]
+                    if is_increasing(reps):
+                        current_reps = round(last_rep + growth_rate(reps))
+                        context['reps'] = current_reps
+                elif target == 3:
+                    durations = [convert_dt_to_seconds(s.duration) for set_ in sets for s in set_ if
+                                 s.index == current_set_index + 1]
+                    rests = [convert_dt_to_seconds(s.rest) for set_ in sets for s in set_ if
+                             s.index == current_set_index + 1]
+                    last_duration = durations[-1]
+                    last_rest = rests[-1]
+                    if is_increasing(durations):
+                        current_duration = round(last_duration + growth_rate(durations))
+                        context['duration'] = convert_seconds_to_str(current_duration)
+                    if not is_increasing(rests):
+                        current_rest = round(last_rest + growth_rate(rests))
+                        context['rest'] = convert_seconds_to_str(current_rest)
         else:
             flash('Конец тренировки', category='success')
             return redirect(url_for('stop_workout'))
     else:
-        return render_template('set/start_new_set.html', **context)
+        return redirect(url_for('start_new_set'))
 
     return render_template('set/start_set.html', **context)
 
@@ -326,8 +432,10 @@ def add_set() -> Response | str:
 
     :return: Redirect to last page.
     """
+    ic(request.form['set_index'])
     workout_id = int(request.form['workout_id'])
     set_index = int(request.form['set_index'])
+
     exercise_id = int(request.form['exercise_id'])
     new_set = Set(
         index=set_index,
@@ -396,7 +504,9 @@ def add_exercise() -> Response | str:
     :return: Rendered template for adding new exercise.
     """
     user_id = current_user.id
-    types = db.session.execute(db.select(WorkoutType).filter(WorkoutType.user_id == user_id).order_by(WorkoutType.type)).scalars()
+    targets = db.session.execute(db.select(Target).order_by(Target.title)).scalars()
+    types = db.session.execute(
+        db.select(WorkoutType).filter(WorkoutType.user_id == user_id).order_by(WorkoutType.type)).scalars()
     if request.method == 'POST':
         exercise = Exercise(user_id=user_id, title=request.form['title'], workout_type_id=request.form['type'])
         db.session.add(exercise)
@@ -405,7 +515,7 @@ def add_exercise() -> Response | str:
             return redirect(url_for('show_exercises'))
         else:
             flash('Ошибка добавления', category='error')
-    return render_template('exercise/add_exercise.html', title='Добавить упражнение', menu=menu, types=types)
+    return render_template('exercise/add_exercise.html', title='Добавить упражнение', menu=menu, types=types, targets=targets)
 
 
 @app.route('/exercises')
@@ -443,8 +553,9 @@ def update_exercise(exercise_id: int) -> Response | str:
 
     else:
         workout_types = db.session.execute(db.select(WorkoutType).order_by(WorkoutType.type)).scalars()
+        targets = db.session.execute(db.select(Target).order_by(Target.title)).scalars()
         return render_template('exercise/update_exercise.html', exercise=exercise, workout_types=workout_types,
-                               menu=menu)
+                               menu=menu, targets=targets)
 
 
 @app.route('/exercise/<int:exercise_id>/delete', methods=['POST'])
@@ -460,6 +571,59 @@ def delete_exercise(exercise_id: int) -> Response | str:
     db.session.delete(exercise)
     db.session.commit()
     return redirect(url_for('show_exercises'))
+
+
+@app.route('/target/add', methods=['GET', 'POST'])
+@login_required
+def add_target() -> Response | str:
+    """
+    Add new target.
+
+    :return:
+    """
+    if request.method == 'POST':
+        user_id = current_user.id
+        target = Target(title=request.form['title'], user_id=user_id)
+        db.session.add(target)
+        if not db.session.commit():
+            flash('Цель добавлена', category='success')
+            return redirect(url_for('add_exercise'))
+        else:
+            flash('Ошибка добавления', category='error')
+    return render_template('target/add_target.html', title='Добавить цель', menu=menu)
+
+
+@app.route('/target/<int:target_id>/update', methods=['GET', 'POST'])
+@login_required
+def update_target(target_id: int) -> Response | str:
+    """
+    Update target.
+
+    :param target_id:
+    :return: Redirect to the list of exercises or HTML template with the updated exercise.
+    """
+    target = db.get_or_404(Target, target_id)
+    if request.method == 'POST':
+        target.title = request.form['title']
+        db.session.commit()
+        return redirect(url_for('add_exercise'))
+    else:
+        return render_template('target/update_target.html', target=target, menu=menu)
+
+
+@app.route('/target/<int:target_id>/delete', methods=['POST'])
+@login_required
+def delete_target(target_id: int) -> Response | str:
+    """
+    Delete target.
+
+    :param target_id:
+    :return: Redirect to the list of exercises.
+    """
+    target = db.get_or_404(Target, target_id)
+    db.session.delete(target)
+    db.session.commit()
+    return redirect(url_for('add_exercise'))
 
 
 @app.route('/workout/type/add', methods=['GET', 'POST'])
@@ -528,14 +692,18 @@ def add_workout() -> Response | str:
     :return: Redirect to the start of the new set for the new workout or HTML page displaying the new workout.
     """
     user_id = current_user.id
-    types = [wt[0] for wt in db.session.execute(db.select(WorkoutType).filter(WorkoutType.user_id == user_id).order_by(WorkoutType.type)).all()]
-
+    types = [wt[0] for wt in db.session.execute(
+        db.select(WorkoutType).filter(WorkoutType.user_id == user_id).order_by(WorkoutType.type)).all()]
+    targets = db.session.execute(
+        db.select(Target).filter(Target.user_id == user_id).order_by(Target.title)).scalars()
     if not types:
         return redirect(url_for('add_workout_type'))
 
     if request.method == 'POST':
         user_id = current_user.id
-        workout = Workout(user_id=user_id, workout_type_id=request.form['type'])
+        workout = Workout(user_id=user_id, workout_type_id=request.form['type'],
+                          date=datetime.datetime.now().replace(microsecond=0),
+                          target_id=request.form['target'])
         db.session.add(workout)
         if not db.session.commit():
             flash('Начало тренировки', category='success')
@@ -545,7 +713,7 @@ def add_workout() -> Response | str:
                 return redirect(url_for('start_new_set'))
         else:
             flash('Ошибка добавления', category='error')
-    return render_template('workout/add_workout.html', title='Тренировка', menu=menu, types=types)
+    return render_template('workout/add_workout.html', title='Тренировка', menu=menu, types=types, targets=targets)
 
 
 @app.route('/workout/<int:workout_id>')

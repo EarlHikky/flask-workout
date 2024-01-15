@@ -6,8 +6,8 @@ from sqlalchemy import create_engine, MetaData, Table, Column, Integer, Float, S
 from sqlalchemy.orm import relationship
 
 # Подключение к серверу PostgreSQL на localhost с помощью psycopg2 DBAPI
-# engine = create_engine('postgresql+psycopg2://postgres@localhost/workouts')
-engine = create_engine('sqlite:////home/earl/PycharmProjects/flask-workout/database.db')
+engine = create_engine('postgresql+psycopg2://postgres@localhost/workouts')
+# engine = create_engine('sqlite:////home/earl/PycharmProjects/flask-workout/database.db')
 Base = declarative_base()
 # Создание таблицы (если ее нет)
 Base.metadata.create_all(engine)
@@ -19,6 +19,12 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(25), nullable=False)
 
+
+class Target(Base):
+    __tablename__ = 'targets'
+    id = Column(Integer, primary_key=True)
+    title = Column(String(25), unique=True)
+    user_id = Column(Integer, ForeignKey('users.id'))
 
 class WorkoutType(Base):
     __tablename__ = 'workout_types'
@@ -34,18 +40,21 @@ class Exercise(Base):
     title = Column(String(100), nullable=False)
     workout_type_id = Column(String(25), ForeignKey('workout_types.id', ondelete='CASCADE'))
     type = relationship('WorkoutType', backref='exercises')
+    target_id = Column(Integer, ForeignKey('targets.id'))
+
 
 
 class Workout(Base):
     __tablename__ = 'workouts'
     id = Column(Integer, primary_key=True)
-    date = Column(DateTime(), default=datetime.now)
+    date = Column(DateTime())
     workout_type_id = Column(String(25), ForeignKey('workout_types.id'))
     stop = Column(DateTime())
     type = relationship('WorkoutType')
     duration = Column(Time())
     user_id = Column(Integer, ForeignKey('users.id'))
     sets = relationship('Set', backref='workout')
+    target_id = Column(Integer, ForeignKey('targets.id'))
 
 
 class Set(Base):

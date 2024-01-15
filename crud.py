@@ -10,10 +10,12 @@ engine = create_engine('postgresql+psycopg2://postgres@localhost/workouts')
 Session = sessionmaker(bind=engine)
 
 
-def m(i):
+def m():
     with Session() as session:
-        workout = session.get_one(Workout, i)
-
+        workouts = session.execute(select(Workout))
+        for w in workouts:
+            w[0].duration = w[0].duration.replace(microsecond=0)
+            w[0].date = w[0].date.replace(microsecond=0)
         session.commit()
 
 
