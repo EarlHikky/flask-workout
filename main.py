@@ -104,12 +104,13 @@ def is_new_workout() -> Workout | None:
         return workout
 
 
-def get_context(workout: Workout) -> dict:
+def get_context(workout: Workout, w_type: str = None) -> dict:
     """
     Get context for template.
 
     :param workout:
-    :return: Dict with context for template.
+    :param w_type:
+    :return:
     """
     workout_id = workout.id
     workout_type_id = workout.workout_type_id
@@ -127,7 +128,10 @@ def get_context(workout: Workout) -> dict:
     for item in menu:
         if item['name'] == 'Старт':
             item['name'] = 'Прод..'
-            item['url'] = 'start_new_set'
+            if w_type == 'new':
+                item['url'] = 'start_new_set'
+            else:
+                item['url'] = 'start_set'
 
     context = {
         'menu': menu,
@@ -206,7 +210,7 @@ def start_new_set() -> Response | str:
     if not current_workout:
         return redirect(url_for('add_workout'))
 
-    context = get_context(current_workout)
+    context = get_context(current_workout, w_type='new')
     current_set_index = 1
     last_set_exercise_title = ''
     if len(current_workout.sets) > 0:
@@ -217,7 +221,6 @@ def start_new_set() -> Response | str:
             current_set_index = last_set_index + 1
     context['last_set_exercise_title'] = last_set_exercise_title
     context['set_index'] = current_set_index
-    ic(current_set_index)
     context['rest'] = '01:30'
     context['seconds'] = 0
     context['duration'] = 0
@@ -358,7 +361,8 @@ def start_set() -> Response | str:
                 workouts = last_workouts[1:]
                 workouts.sort(key=lambda x: x.date)
                 sets = [workout.sets for workout in workouts if workout.sets]
-                target = current_workout.target_id
+                target = 2
+                # target = current_workout.target_id
 
                 if target == 1:  # TODO
                     weights = [s.weight for set_ in sets for s in set_ if s.index == current_set_index + 1]
@@ -515,7 +519,8 @@ def add_exercise() -> Response | str:
             return redirect(url_for('show_exercises'))
         else:
             flash('Ошибка добавления', category='error')
-    return render_template('exercise/add_exercise.html', title='Добавить упражнение', menu=menu, types=types, targets=targets)
+    return render_template('exercise/add_exercise.html', title='Добавить упражнение', menu=menu, types=types,
+                           targets=targets)
 
 
 @app.route('/exercises')

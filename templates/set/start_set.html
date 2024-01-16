@@ -43,21 +43,6 @@ let durationTime = 0;
 
 
 
-
-function playSound() {
- // Если текущий источник звука уже был создан, остановите его перед воспроизведением нового звука
- if (currentSource) {
- currentSource.stop();
- }
-
- let source = audioContext.createBufferSource();
- source.buffer = soundBuffer;
- source.connect(audioContext.destination);
- source.start(0);
-
- currentSource = source; // Сохраняем ссылку на текущий источник
-}
-
 function stopSound() {
 
  if (currentSource) {
