@@ -47,6 +47,7 @@ class Exercise(Base):
 class Workout(Base):
     __tablename__ = 'workouts'
     id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'))
     date = Column(DateTime())
     workout_type_id = Column(String(25), ForeignKey('workout_types.id'))
     stop = Column(DateTime())

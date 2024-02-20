@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 from sqlalchemy import create_engine, text, select, desc
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, joinedload
 from db import User, Workout, Exercise, Set
 
 engine = create_engine('postgresql+psycopg2://postgres@localhost/workouts')
@@ -12,10 +12,26 @@ Session = sessionmaker(bind=engine)
 
 def m():
     with Session() as session:
-        workouts = session.execute(select(Workout))
-        for w in workouts:
-            w[0].duration = w[0].duration.replace(microsecond=0)
-            w[0].date = w[0].date.replace(microsecond=0)
+        last_workouts = session.query(Workout).options(joinedload(Workout.sets).joinedload(Set.exercise)).filter(
+            Workout.user_id == 1).filter(
+            Workout.workout_type_id == 4).order_by(desc(Workout.date)).limit(4).all()
+        last_workout = last_workouts[0]
+        print(last_workout.date)
+        new_set = Set(
+            # Здесь должны быть установлены атрибуты Set, например:
+            exercise_id=27,
+            reps=20,
+            weight=0,
+            index=26,
+            start=last_workout.date,
+            duration=timedelta(seconds=60),
+            rest=timedelta(seconds=60),
+
+        )
+
+        # Добавляем новый set в коллекцию sets последней тренировки
+        last_workout.sets.append(new_set)
+
         session.commit()
 
 
