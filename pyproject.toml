@@ -3,7 +3,7 @@ name = "flask-workout"
 version = "0.1.0"
 description = ""
 authors = ["Earl <earlhikky91@gmail.com>"]
-readme = "README.md"
+readme = "README.MD"
 
 [tool.poetry.dependencies]
 python = "^3.11"

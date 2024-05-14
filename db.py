@@ -26,6 +26,7 @@ class Target(Base):
     title = Column(String(25), unique=True)
     user_id = Column(Integer, ForeignKey('users.id'))
 
+
 class WorkoutType(Base):
     __tablename__ = 'workout_types'
     id = Column(Integer, primary_key=True)
@@ -41,7 +42,6 @@ class Exercise(Base):
     workout_type_id = Column(String(25), ForeignKey('workout_types.id', ondelete='CASCADE'))
     type = relationship('WorkoutType', backref='exercises')
     target_id = Column(Integer, ForeignKey('targets.id'))
-
 
 
 class Workout(Base):

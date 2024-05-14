@@ -553,6 +553,7 @@ def update_exercise(exercise_id: int) -> Response | str:
     if request.method == 'POST':
         exercise.title = request.form['title']
         exercise.workout_type_id = request.form['workout_type_id']
+        exercise.target_id = request.form['target']
         db.session.commit()
         return redirect(url_for('show_exercises'))
 
@@ -824,8 +825,8 @@ def page_not_found(error: Exception) -> Tuple[str, int]:
 
 if __name__ == '__main__':
     # app.run(debug=True)
-    app.run(debug=True, host='192.168.31.254', port=5000)
-    # app.run(debug=True, host='192.168.31.5', port=5000)
+    # app.run(debug=True, host='192.168.31.254', port=5000)
+    app.run(debug=True, host='192.168.31.5', port=5000)
     # app.run(debug=True, host='192.168.31.5')
     # app.run(host='192.168.31.5', port=5000)
     # app.run()
