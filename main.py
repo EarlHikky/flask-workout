@@ -361,8 +361,7 @@ def start_set() -> Response | str:
                 workouts = last_workouts[1:]
                 workouts.sort(key=lambda x: x.date)
                 sets = [workout.sets for workout in workouts if workout.sets]
-                target = 2
-                # target = current_workout.target_id
+                target = current_workout.target_id
 
                 if target == 1:  # TODO
                     weights = [s.weight for set_ in sets for s in set_ if s.index == current_set_index + 1]
